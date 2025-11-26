@@ -1,0 +1,55 @@
+[
+  {
+    "component": "header",
+    "classList": [
+      "header"
+    ],
+    "body": [
+      {
+        "component": "div",
+        "classList": [
+          "wrapper__inner"
+        ],
+        "body": [
+          {
+            "component": "logo"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "component": "section",
+    "classList": [
+      "main"
+    ],
+    "body": [
+      {
+        "component": "div",
+        "classList": [
+          "wrapper__inner"
+        ],
+        "body": [
+          "404 Такой страницы нет!"
+        ]
+      }
+    ]
+  },
+  {
+    "component": "footer",
+    "classList": [
+      "footer"
+    ],
+    "body": [
+      {
+        "component": "div",
+        "classList": [
+          "wrapper__inner"
+        ],
+        "body": [
+          "&copy; 2025 Словарик"
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,20 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+ul, li {
+    list-style: none;
+}
+
+.logo__wrapper {
+    width: 200px;
+    height: 200px;
+}
+
+.logo__wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
