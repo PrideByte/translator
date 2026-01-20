@@ -1,0 +1,45 @@
+<@include "header">
+
+<main class="page">
+    <div class="wrapper">
+        <h1 class="page__title">
+            Словарь переводов
+        </h1>
+
+        <section class="dictionary__section" aria-labelledby="dictionary__title">
+            <div class="dictionary__options">
+                <!-- Row limit filter for translations table -->
+                <limitfilter-component
+                    key="mainOptions"
+                    handledComponent="translations-component"
+                    class="dictionary__rowlimit">
+                    Отображать на странице: | Отобразить
+                </limitfilter-component>
+
+                <!-- Add new translations button -->
+                <button-component
+                    key="isAddTranslationModalOpen"
+                    class="btn btn-secondary"
+                    href="/addtranslation">
+                    Добавить перевод
+                </button-component>
+            </div>
+
+            <h2 id="dictionary__title" class="visually-hidden">
+                Таблица переводов
+            </h2>
+
+            <!-- Translations table -->
+            <translations-component
+                key="translations"
+                class="dictionary">
+            </translations-component>
+        </section>
+
+        <!-- Pagination for translations table -->
+        <pagination-component
+            key="mainOptions"
+            handledComponent="translations-component">
+        </pagination-component>
+    </div>
+</main>

@@ -1,0 +1,8 @@
+<header class="header">
+    <div class="wrapper">
+        <logo-component class="logo" alt="Логотип"></logo-component>
+        <navigation-component>
+            No navigation just yet
+        </navigation-component>
+    </div>
+</header>

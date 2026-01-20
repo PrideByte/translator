@@ -1,8 +1,8 @@
-const baseBlock = require('./base.js');
+const baseBlock = require('../primitiveComponents/base.js');
 
 function render(opts) {
   return baseBlock.render({
-    tag: 'section',
+    tagName: 'nav',
     ...opts
   });
 }

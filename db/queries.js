@@ -1,3 +1,4 @@
+const settings = require('../shared/const.js');
 const mysql = require('mysql2/promise');
 
 class DB {
@@ -27,9 +28,9 @@ class DB {
         });
     }
 
-    async getPageByPath(path) {
+    async getPageMetaByPath(path) {
         const res = (await this.pool.query(`
-            SELECT *
+            SELECT meta
             FROM pages
             WHERE path = ?;`, path)
         )[0];
@@ -37,9 +38,20 @@ class DB {
         return res[0];
     }
 
+    getWordsCountByWord = async function(word = '') {
+        const [result] = await this.pool.query(`
+            SELECT COUNT(id) as count
+            FROM english_words
+            WHERE english_words.word LIKE ?;
+        `, [word]);
+
+        return result[0];
+    }
+
     getTranslationsByWord = async function({word = null, limit = 10, page = 1}) {
-        const limitList = [10, 30, 50];
-        limit = (limitList.includes(limit)) ? Number(limit) : 10;
+        const { limitList } = settings;
+        limit = Number(limit);
+        limit = (limitList.includes(limit)) ? limit : 10;
         if ((typeof word !== 'string') || word === '') {
             word = null;
         }
@@ -66,17 +78,134 @@ class DB {
             ) AS en_words
             ON en_words.id = en_ru_links.en_id;
         `, [word, word, limit, offset]);
-
+        
         const wordsHash = result.reduce((acc, row) => {
             if (!acc[row.word]) {
                 acc[row.word] = [];
             }
-
+            
             acc[row.word].push(row.ru_word);
             return acc;
         }, {});
 
         return wordsHash;
+    }
+
+    getWordId = async function({ connection, dbName, word }) {
+        const [result] = await connection.execute(`
+            SELECT id
+            FROM ${dbName}
+            WHERE word = ?;
+        `, [word]);
+
+
+        return result.length ? result[0].id : false;
+    }
+
+    insertWord = async function({ connection, dbName, word }) {
+        const [result] = await connection.execute(`
+            INSERT INTO ${dbName} (word)
+            VALUES (?)
+        `, [word]);
+
+        return result.insertId;
+    }
+
+    addEnToRuTranslations = async function({ word, translations }) {
+        const connection = await this.pool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+            let wordId = '';
+
+            // Check if word is already exist in db
+            const existId = await this.getWordId({ connection, dbName: 'english_words', word });
+
+            if (existId !== false) {
+                // If it is - get it's id
+                wordId = existId;
+            } else {
+                // If not exist - add it and get it's id
+                wordId = await this.insertWord({ connection, dbName: 'english_words', word });
+            }
+
+            const translationIds = [];
+
+            for (const translation of translations) {
+                if (!translation) {
+                    continue;
+                }
+
+                const existTranslationId = await this.getWordId({ connection, dbName: 'russian_words', word: translation });
+
+                if (existTranslationId !== false) {
+                    translationIds.push(existTranslationId);
+                } else {
+                    translationIds.push(await this.insertWord({ connection, dbName: 'russian_words', word: translation }));
+                }
+            }
+
+            await connection.query(`
+                INSERT IGNORE INTO en_ru_links (en_id, ru_id)
+                VALUES ?
+            `, [translationIds.map(e => [wordId, e])]);
+
+            await connection.commit();
+        } catch (e) {
+            await connection.rollback();
+            console.error(e);
+            throw new Error(e);
+        } finally {
+            connection.release();
+        }
+    }
+
+    addRuToEnTranslations = async function({ word, translations }) {
+        const connection = await this.pool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+            let wordId = '';
+
+            // Check if word is already exist in db
+            const existId = await this.getWordId({ connection, dbName: 'russian_words', word });
+            if (existId !== false) {
+                // If it is - get it's id
+                wordId = existId;
+            } else {
+                // If not exist - add it and get it's id
+                wordId = await this.insertWord({ connection, dbName: 'russian_words', word });
+            }
+
+            const translationIds = [];
+
+            for (const translation of translations) {
+                if (!translation) {
+                    continue;
+                }
+
+                const existTranslationId = await this.getWordId({ connection, dbName: 'english_words', word: translation });
+
+                if (existTranslationId !== false) {
+                    translationIds.push(existTranslationId);
+                } else {
+                    translationIds.push(await this.insertWord({ connection, dbName: 'english_words', word: translation }));
+                }
+            }
+
+            await connection.query(`
+                INSERT IGNORE INTO en_ru_links (en_id, ru_id)
+                VALUES ?
+            `, [translationIds.map(e => [e, wordId])]);
+
+            await connection.commit();
+        } catch (e) {
+            await connection.rollback();
+            console.error(e);
+            throw new Error(e);
+        } finally {
+            connection.release();
+        }
     }
 }
 
