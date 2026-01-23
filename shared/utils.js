@@ -1,5 +1,4 @@
 const fs = require('fs');
-const { raw } = require('mysql2');
 const path = require('path');
 
 function escapeHtml(str) {
@@ -72,8 +71,16 @@ function sanitizeURLParams(searchParams) {
 	return result;
 }
 
-function isLooksLikeRussian(word) {
-	return /[А-ЯЁа-яё]/ui.test(word);
+function testLang(word, ruTest) {
+	return ruTest
+		// Если ни одной английской буквы - ru
+		? /^[^a-zA-Z]+$/ui.test(word)
+		// Если ни одной русской буквы - en
+		: /^[^а-яёА-ЯЁ]+$/ui.test(word);
+}
+
+function segmenterConstructor() {
+	return new Intl.Segmenter(['ru', 'en'], {granularity: 'grapheme'});
 }
 
 module.exports = {
@@ -82,5 +89,6 @@ module.exports = {
 	getAllAttrsString,
 	resolvePath,
 	sanitizeURLParams,
-	isLooksLikeRussian
+	testLang,
+	segmenter: segmenterConstructor()
 };

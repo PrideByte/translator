@@ -6,47 +6,6 @@
             Словарь переводов
         </h1>
 
-        <form class="modal" method="POST" action="/addtranslation">
-            <header class="modal__header">
-                <h2 class="modal__title">
-                    Добавить перевод
-                </h2>
-                <p class="modal__text">Поддерживается перевод в любом порядке (en - ru, ru - en)</p>
-            </header>
-
-
-            <div class="modal__body">
-                <div class="modal__group">
-                    <label class="modal__label">Слово или предложение</label>
-                    <input class="modal__input" name="word" type="text" placeholder="Слово или предложение" autofocus required>
-                </div>
-
-                <fieldset class="modal__group">
-                    <legend>Переводы</legend>
-                    <div class="modal__row">
-                        <input class="modal__input" name="translations" type="text" placeholder="Перевод" required>
-                    </div>
-                    <div class="modal__row">
-                        <input class="modal__input" name="translations" type="text" placeholder="Перевод">
-                        <button class="btn" type="button" aria-label="Удалить перевод">
-                            ×
-                        </button>
-                    </div>
-
-                    <button class="btn btn-secondary" type="button">
-                        + Добавить перевод
-                    </button>
-                </fieldset>
-            </div>
-
-            <footer class="modal__footer">
-                <button type="reset" class="btn btn-secondary">
-                    Очистить
-                </button>
-                <button type="submit" class="btn">
-                    Добавить
-                </button>
-            </footer>
-        </form>
+        <translationform-component key="translationForm" class="trsform"></translationform-component>
     </div>
 </main>

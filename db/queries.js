@@ -7,15 +7,7 @@ class DB {
     }
 
     init = async function() {
-        // Get english words number and russian words number
-        [ { count: this.enWordsNumber }, { count: this.ruWordsNumber } ] = (
-            await this.pool.query(`
-                SELECT COUNT(id) AS count
-                FROM english_words
-                UNION
-                SELECT COUNT(id) AS count
-                FROM russian_words;`)
-        )[0];
+        await this.getWordsNumber();
 
         // Get pages list
         this.pages = new Map();
@@ -26,6 +18,18 @@ class DB {
         pagesList.forEach(element => {
             this.pages.set(element.path, element);
         });
+    }
+
+    getWordsNumber = async function() {
+        // Get english words number and russian words number
+        [ { count: this.enWordsNumber }, { count: this.ruWordsNumber } ] = (
+            await this.pool.query(`
+                SELECT COUNT(id) AS count
+                FROM english_words
+                UNION
+                SELECT COUNT(id) AS count
+                FROM russian_words;`)
+        )[0];
     }
 
     async getPageMetaByPath(path) {
@@ -151,6 +155,8 @@ class DB {
             `, [translationIds.map(e => [wordId, e])]);
 
             await connection.commit();
+
+            await this.getWordsNumber();
         } catch (e) {
             await connection.rollback();
             console.error(e);
@@ -158,6 +164,11 @@ class DB {
         } finally {
             connection.release();
         }
+
+        const result = {};
+        result[word] = translations;
+
+        return result;
     }
 
     addRuToEnTranslations = async function({ word, translations }) {
@@ -199,6 +210,8 @@ class DB {
             `, [translationIds.map(e => [e, wordId])]);
 
             await connection.commit();
+
+            await this.getWordsNumber();
         } catch (e) {
             await connection.rollback();
             console.error(e);
@@ -206,6 +219,11 @@ class DB {
         } finally {
             connection.release();
         }
+
+        const result = {};
+        result[word] = translations;
+
+        return result;
     }
 }
 

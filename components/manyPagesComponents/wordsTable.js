@@ -16,7 +16,7 @@ async function checkURLParams({ db, url }) {
 		? Math.ceil(db.enWordsNumber / limit)
 		: Math.max(Math.ceil(((await db.getWordsCountByWord(word)).count) / limit), 1);
 
-	if (+url.params.page && !(page > 0 && page <= +maxPages)) {
+	if (url.params.page && (Number.isNaN(+url.params.page) || !(page > 0 && page <= +maxPages))) {
 		normalizedParams.set('page', settings.pageDefault);
 		page = settings.pageDefault;
 	}

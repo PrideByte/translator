@@ -3,13 +3,13 @@ const settings = require('../../shared/const.js');
 
 const requiredData = async ({ db, url, attrs }) => {
 	if (!attrs.handledComponent) {
-		throw new Error(`Handled component is not specified in "${attrs.key}" Pagination component`);
+		throw new Error(`Handled component is not specified in "${attrs.key}" Limit By Page component`);
 	}
 
 	const checkURLParams = manyPagesRegistry[attrs.handledComponent];
 
 	if (!checkURLParams) {
-		throw new Error(`Unknown Handled component "${attrs.handledComponent}" specified in "${attrs.key}" Pagination component`);
+		throw new Error(`Unknown Handled component "${attrs.handledComponent}" specified in "${attrs.key}" Limit By Page component`);
 	}
 
 	const checkResult = await checkURLParams({ db, url, attrs });

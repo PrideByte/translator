@@ -1,6 +1,6 @@
 const components = require('../components/index.js');
 
-async function collectData({tree, db, url, state = {}}) {
+async function collectData({tree, db, url, messages, state = {}}) {
     for (const node of tree) {
         if (typeof node === 'string') continue;
 
@@ -18,7 +18,8 @@ async function collectData({tree, db, url, state = {}}) {
             const data = await component.requiredData({
                 db,
                 url,
-                attrs: node.attrs || {}
+                attrs: node.attrs || {},
+                messages
             });
 
             if (!data.constraints) {
@@ -40,7 +41,7 @@ async function collectData({tree, db, url, state = {}}) {
     return state;
 }
 
-function renderTree(tree, initialData) {
+function renderTree(tree, initialData = {}) {
     let html = '';
 
     for (const node of tree) {

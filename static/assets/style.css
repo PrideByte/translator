@@ -52,7 +52,8 @@ button:disabled:focus-visible {
 	box-shadow: none;
 }
 
-ul, li {
+ul,
+li {
 	list-style: none;
 }
 
@@ -79,9 +80,9 @@ ul, li {
 	box-shadow: inset 0 0 5px 1px var(--bg-table-head);
 	text-decoration: none;
 	transition: background-color 0.15s ease,
-				transform 0.1s ease,
-				color 0.1s ease;
-				border-color:  0.1s ease;
+		transform 0.1s ease,
+		color 0.1s ease;
+	border-color: 0.1s ease;
 }
 
 .btn:active,
@@ -307,7 +308,7 @@ ul, li {
 
 
 /* Translation modal and page */
-.modal__overlay {
+.trsform__overlay {
 	position: fixed;
 	inset: 0;
 	background-color: rgba(0, 0, 0, 0.35);
@@ -318,7 +319,7 @@ ul, li {
 	z-index: 1000;
 }
 
-.modal__close {
+.trsform__close {
 	width: 32px;
 	height: 32px;
 	border-radius: 8px;
@@ -327,53 +328,56 @@ ul, li {
 	cursor: pointer;
 }
 
-.modal {
+.trsform {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
 	max-width: 1000px;
 	margin: 0 auto;
-	border-radius: 16px;
 	background-color: var(--bg-table);
+	border-radius: 16px;
+	overflow: hidden;
 }
 
-.modal__header,
-.modal__body,
-.modal__footer {
+.trsform__header,
+.trsform__body,
+.trsform__footer {
 	padding: 16px 24px;
 }
 
-.modal__header {
+.trsform__header {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: space-between;
+	background-color: var(--bg-table-head);
 	border-bottom: 1px solid var(--bg-divider, #cfcabf);
 }
 
-.modal__title {
+.trsform__title {
 	margin: 0;
 	font-size: 24px;
 	font-weight: 600;
 }
 
-.modal__body {
+.trsform__body {
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
 }
 
-.modal__group {
+.trsform__group {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
+	border-radius: 10px;
 }
 
-fieldset.modal__group {
+fieldset.trsform__group {
 	padding: 10px;
 }
 
-.modal__input {
+.trsform__input {
 	padding: 10px 15px;
 	border-radius: 10px;
 	border: 1px solid var(--bg-divider, #cfcabf);
@@ -382,37 +386,49 @@ fieldset.modal__group {
 	background-color: var(--bg-primary);
 }
 
-.modal__input:focus-visible {
+.trsform__input:focus-visible {
 	outline: 2px solid #4a5fd2;
 	outline-offset: 1px;
 }
 
-.modal__row {
+.trsform__row {
 	display: flex;
 	flex-wrap: nowrap;
 	align-items: center;
 }
 
-.modal__row:last-of-type {
+.trsform__row:last-of-type {
 	margin-bottom: 20px;
 }
 
-.modal__row .btn {
+.trsform__row .btn {
 	margin-left: 10px;
 	padding: 7px 12px;
 	font-size: 22px;
 	color: var(--color-error);
 }
 
-.modal__input {
+.trsform__input {
 	width: 100%;
 }
 
 
-.modal__footer {
+.trsform__footer {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 8px;
+}
+
+.trsform__errors {
+	padding: 6px;
+	color: #721c24;
+	border: 1px solid #f00;
+	border-radius: 8px;
+	background-color: #ffb8b8;
+}
+
+.trsform__fielderr {
+	border: 1px solid #f00;
 }

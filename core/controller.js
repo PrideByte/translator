@@ -30,7 +30,7 @@ function generateLayout(meta, body, initialState = {}) {
   `;
 }
 
-async function handlePage({ pageTemplate, pageMeta = {}, db, url, statusCode = 200 }) {
+async function handlePage({ pageTemplate, pageMeta = {}, db, url, statusCode = 200, messages = {} }) {
 	const result = {
 		html: '',
 		statusCode,
@@ -42,7 +42,7 @@ async function handlePage({ pageTemplate, pageMeta = {}, db, url, statusCode = 2
 		strictMode: true
 	});
 
-	const initialData = await collectData({ tree, db, url });
+	const initialData = await collectData({ tree, db, url, messages });
 	
 	if (initialData.constraints && Object.entries(initialData.constraints).length) {
 		const paramsList = [];
