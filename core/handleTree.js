@@ -1,6 +1,8 @@
 const components = require('../components/index.js');
 
-async function collectData({tree, db, url, messages, state = {}}) {
+async function collectData({ tree, db, url, messages, state = {} }) {
+    const dataCollection = [];
+
     for (const node of tree) {
         if (typeof node === 'string') continue;
 
@@ -15,27 +17,39 @@ async function collectData({tree, db, url, messages, state = {}}) {
                 throw new Error(`Component "${node.name}" requires key`);
             }
 
-            const data = await component.requiredData({
-                db,
-                url,
-                attrs: node.attrs || {},
-                messages
-            });
+            dataCollection.push((async () => {
+                const data = await component.requiredData({
+                    db,
+                    url,
+                    attrs: node.attrs || {},
+                    messages
+                });
 
-            if (!data.constraints) {
-                if (!state["data"]) {
-                    state["data"] = {};
-                }
-                state.data[node.attrs.key] = data.data;
-            } else {
-                if (!state["constraints"]) {
-                    state["constraints"] = {};
-                }
-                state.constraints[node.attrs.key] = data.constraints;
-            }
+                return { node, data };
+            })());
         }
+    }
 
-        await collectData({tree: node.children, db, url, state});
+    const result = await Promise.all(dataCollection);
+
+    for (const {node, data} of result) {
+        if (!data.constraints) {
+            if (!state["data"]) {
+                state["data"] = {};
+            }
+            state.data[node.attrs.key] = data.data;
+        } else {
+            if (!state["constraints"]) {
+                state["constraints"] = {};
+            }
+            state.constraints[node.attrs.key] = data.constraints;
+        }
+    }
+
+    for (const node of tree) {
+        if (node.children) {
+            await collectData({ tree: node.children, db, url, state });
+        }
     }
 
     return state;
@@ -58,7 +72,7 @@ function renderTree(tree, initialData = {}) {
 
         const innerHTML = renderTree(node.children, initialData);
 
-        const data = node.attrs.key && initialData[node.attrs.key] != undefined
+        const data = (node.attrs.key && node.attrs.key in initialData)
             ? initialData[node.attrs.key]
             : null;
 

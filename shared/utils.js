@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 function escapeHtml(str) {
-	if (str == null) return '';
+	if (!str) return '';
+
 	return String(str)
 		.replace(/&(?![a-zA-Z0-9]+;)/g, '&amp;')
 		.replace(/</g, '&lt;')
@@ -13,7 +14,11 @@ function escapeHtml(str) {
 
 function serializeForScript(obj) {
 	let json = JSON.stringify(obj);
-	json = json.replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+	json = json
+		.replace(/\u2028/g, '\\u2028')
+		.replace(/\u2029/g, '\\u2029')
+		.replace(/</g, '\\u003C')
+		.replace(/>/g, '\\u003E');
 
 	return json;
 }

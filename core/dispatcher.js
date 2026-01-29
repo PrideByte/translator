@@ -5,76 +5,92 @@ const settings = require('../shared/const.js');
 
 const responseMap = {
     'html': (res) => ({
-        data: String(res.html),
-        statusCode: res.statusCode,
+        data: String(res.html || res.data),
+        statusCode: res.statusCode || 200,
         headers: {
             'Content-Type': 'text/html; charset=utf-8'
         }
     }),
-    'redirectPage': (res, requestURL) => ({
-        statusCode: res.statusCode,
-        headers: {
-            'Location': res.normalizedURL
-                ? new URL(`${requestURL.origin}${requestURL.pathname}?${res.normalizedURL}`)
-                : new URL(`${requestURL.origin}${requestURL.pathname}`)
+    'redirect': (res, requestURL) => {
+        const searchParams = res.normalizedURL || "";
+        const url = new URL(`${requestURL.origin}${res.pathname || requestURL.pathname}`);
+        url.search = searchParams;
+
+        return {
+            statusCode: res.statusCode,
+            headers: {
+                'Location': url.toString()
+            }
         }
-    }),
-    'redirectAction': (res, requestURL) => ({
-        statusCode: res.statusCode,
-        headers: {
-            'Location': new URL(`${requestURL.origin}${res.pathname}`)
-        }
-    }),
+    },
     'json': (res) => ({
         data: JSON.stringify(res),
         statusCode: res.statusCodeJSON || res.statusCode,
         headers: {
             'Content-Type': 'application/json'
         }
-    }),
-    'not_found': () => ({ type: 'not_found' }),
-    'error': (res) => ({
-        statusCode: res.statusCode || 500,
-        data: String(res.data) || '500 Internal Error',
-        headers: {
-            'Content-Type': 'text/plain; charset=utf-8'
-        }
     })
 };
 
 async function parseFormData(request) {
     return new Promise((resolve, reject) => {
-        let body = '';
+        const body = [];
+        let bodyLength = 0;
 
         request.on('data', function (data) {
-            body += String(data);
+            bodyLength += data.length;
 
             // 1MiB
-            if (body.length > 1 * settings.sizesDictionary.MB) {
+            if (bodyLength > 1 * settings.sizesDictionary.MB) {
+                request.destroy();
                 reject({
                     statusCode: 413,
                     data: 'Content is too large'
                 });
             }
+            body.push(data);
         });
 
         request.on('end', function () {
-            resolve(qs.parse(body));
+            const bodyString = Buffer.concat(body).toString();
+            resolve(qs.parse(bodyString));
         });
+
+        request.on('error', (err) => reject({ statusCode: 400, data: err.message }));
     });
 }
 
-async function dispatcher({ request, pathname, db, url }) {
+async function dispatcher({ request, pathname, db, url, servicePages }) {
     const resourceURL = new URL(request.url, `http://${request.headers.host}`);
+    const isJSON = request.headers['accept'] === 'application/json';
 
-    if (!actions[pathname]) {
-        return responseMap['not_found']();
+    const throwSystemError = ({ statusCode, data }) => {
+        if (isJSON) {
+            return responseMap['json']({
+                type: 'error',
+                data, statusCode
+            });
+        }
+
+        const page = servicePages[statusCode] || servicePages['500'];
+        return responseMap['html']({
+            data: page.html,
+            statusCode
+        });
+    }
+
+    if (pathname.startsWith('/500')) {
+        return throwSystemError({ statusCode: 500, data: '500 Internal Server Error' });
+    }
+
+    if (!actions[pathname] || pathname.startsWith('/404')) {
+        return throwSystemError({ statusCode: 404, data: '404 Not Found' });
     }
 
     const method = request.method;
 
     if (!actions[pathname][method]) {
-        return responseMap['error']({statusCode: 405, data: '405 Method not Allowed'});
+        return throwSystemError({ statusCode: 405, data: '405 Method not Allowed' });
     }
 
     if (method === 'GET') {
@@ -89,26 +105,37 @@ async function dispatcher({ request, pathname, db, url }) {
         return responseMap[result.type](result, resourceURL);
     }
 
-    const isJSON = request.headers['accept'] === 'application/json';
-
     let body = '';
     if (['POST', 'PUT', 'PATCH'].includes(method)) {
         try {
             body = await parseFormData(request);
         } catch (e) {
-            return responseMap['error'](e);
+            return throwSystemError({ statusCode: 500, data: e });
         }
     }
 
-    const resultAction = await actions[pathname][method]({ body, db, url: resourceURL.pathname });
+    let resultAction;
+    try {
+        resultAction = await actions[pathname][method]({ body, db, url: resourceURL.pathname });
+    } catch (e) {
+        console.error('Action execution failed:', e);
+        return throwSystemError({ statusCode: 500, data: `Action ${method}:${pathname} execution error` });
+    }
 
     if (isJSON) {
         return responseMap['json'](resultAction);
     }
 
+    // Action must return:
+    // { success: true, type: responseMap[type], ...payload }
+    // or
+    // { success: false, type: responseMap[type], ...payload }
     if (resultAction.success) {
         return responseMap[resultAction.type](resultAction, resourceURL);
     } else {
+        if (!actions[pathname]['GET']) {
+            return throwSystemError({ statusCode: 400, data: `Action ${method}:${pathname} failed and no GET template available` });
+        }
         const renderPage = await handlePage({
             pageTemplate: actions[pathname]['GET'],
             pageMeta: JSON.parse((await db.getPageMetaByPath(pathname))?.meta || "{}"),

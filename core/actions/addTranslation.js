@@ -1,4 +1,4 @@
-const { testLang, segmenter } = require('../../shared/utils.js');
+const { testLang, segmenter, escapeHtml } = require('../../shared/utils.js');
 
 function isWordPrimaryInRu(word) {
     const segments = segmenter.segment(word);
@@ -26,7 +26,7 @@ function addError(errors, field, message) {
 async function post({ body, db, url }) {
     const garbageTest = new RegExp(/^[^a-zA-Zа-яёА-ЯЁ]+$/ui);
     const errors = {};
-    const word = (body['word'] || '').trim().replace(garbageTest, '');
+    const word = escapeHtml(body['word'] || '').trim().replace(garbageTest, '');
     let translations;
 
     if (!body['translations']) {
@@ -38,13 +38,13 @@ async function post({ body, db, url }) {
     }
 
     translations = translations.map(el => {
-        const replaced = el.trim().replace(garbageTest, '');
+        const replaced = escapeHtml(el.trim().replace(garbageTest, ''));
 
         if (!replaced.length) {
             const msg = 'В одной из строк перевод состоит только из спецсимволов или цифр';
 
             if (!errors['translations']?.includes(msg)) {
-                addError(errors, 'translations', 'В одной из строк перевод состоит только из спецсимволов или цифр');
+                addError(errors, 'translations', msg);
             }
         }
 
@@ -61,8 +61,8 @@ async function post({ body, db, url }) {
 
     const isWordRu = isWordPrimaryInRu(word);
     const isAnyOfTranslationsSameLang = isWordRu
-        ? translations.reduce((acc, el) => testLang(el, true) || acc, false)
-        : translations.reduce((acc, el) => testLang(el, false) || acc, false);
+        ? translations.reduce((acc, el) => (testLang(el, true) || acc), false)
+        : translations.reduce((acc, el) => (testLang(el, false) || acc), false);
 
     const isWordGarbage = !word || garbageTest.test(word);
     const isTranslationGarbage = !translations.length || translations.reduce((acc, el) => garbageTest.test(el) || acc, false);
@@ -93,15 +93,15 @@ async function post({ body, db, url }) {
             result = await db.addEnToRuTranslations({ word, translations });
         }
     } catch (e) {
-        throw new Error('Error adding translation to database', e);
+        throw new Error('Error adding translation to database', { cause: e });
     }
 
     return {
         success: true,
-        type: 'redirectAction',
+        type: 'redirect',
         statusCodeJSON: 201,
         statusCode: 303,
-        pathname: '/' || url,
+        pathname: '/',
         data: result
     };
 }

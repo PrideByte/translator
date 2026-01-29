@@ -32,7 +32,7 @@ class DB {
         )[0];
     }
 
-    async getPageMetaByPath(path) {
+    getPageMetaByPath = async function(path) {
         const res = (await this.pool.query(`
             SELECT meta
             FROM pages
@@ -47,7 +47,7 @@ class DB {
             SELECT COUNT(id) as count
             FROM english_words
             WHERE english_words.word LIKE ?;
-        `, [word]);
+        `, [`%${word}%`]);
 
         return result[0];
     }
@@ -95,7 +95,7 @@ class DB {
         return wordsHash;
     }
 
-    getWordId = async function({ connection, dbName, word }) {
+    #getWordId = async function({ connection, dbName, word }) {
         const [result] = await connection.execute(`
             SELECT id
             FROM ${dbName}
@@ -106,7 +106,7 @@ class DB {
         return result.length ? result[0].id : false;
     }
 
-    insertWord = async function({ connection, dbName, word }) {
+    #insertWord = async function({ connection, dbName, word }) {
         const [result] = await connection.execute(`
             INSERT INTO ${dbName} (word)
             VALUES (?)
@@ -115,44 +115,56 @@ class DB {
         return result.insertId;
     }
 
+    #addTranslations = async function({ connection, wordDBName, translationsDBName, word, translations, linkMapper }) {
+        let wordId = '';
+
+        // Check if word is already exist in db
+        const existId = await this.#getWordId({ connection, dbName: wordDBName, word });
+
+        if (existId !== false) {
+            // If it is - get it's id
+            wordId = existId;
+        } else {
+            // If not exist - add it and get it's id
+            wordId = await this.#insertWord({ connection, dbName: wordDBName, word });
+        }
+
+        const translationIds = [];
+
+        for (const translation of translations) {
+            if (!translation) {
+                continue;
+            }
+
+            const existTranslationId = await this.#getWordId({ connection, dbName: translationsDBName, word: translation });
+
+            if (existTranslationId !== false) {
+                translationIds.push(existTranslationId);
+            } else {
+                translationIds.push(await this.#insertWord({ connection, dbName: translationsDBName, word: translation }));
+            }
+        }
+
+        await connection.query(`
+            INSERT IGNORE INTO en_ru_links (en_id, ru_id)
+            VALUES ?
+        `, [translationIds.map(e => linkMapper(wordId, e))]);
+    }
+
     addEnToRuTranslations = async function({ word, translations }) {
         const connection = await this.pool.getConnection();
 
         try {
             await connection.beginTransaction();
-            let wordId = '';
 
-            // Check if word is already exist in db
-            const existId = await this.getWordId({ connection, dbName: 'english_words', word });
-
-            if (existId !== false) {
-                // If it is - get it's id
-                wordId = existId;
-            } else {
-                // If not exist - add it and get it's id
-                wordId = await this.insertWord({ connection, dbName: 'english_words', word });
-            }
-
-            const translationIds = [];
-
-            for (const translation of translations) {
-                if (!translation) {
-                    continue;
-                }
-
-                const existTranslationId = await this.getWordId({ connection, dbName: 'russian_words', word: translation });
-
-                if (existTranslationId !== false) {
-                    translationIds.push(existTranslationId);
-                } else {
-                    translationIds.push(await this.insertWord({ connection, dbName: 'russian_words', word: translation }));
-                }
-            }
-
-            await connection.query(`
-                INSERT IGNORE INTO en_ru_links (en_id, ru_id)
-                VALUES ?
-            `, [translationIds.map(e => [wordId, e])]);
+            await this.#addTranslations({
+                connection,
+                wordDBName: 'english_words',
+                translationsDBName: 'russian_words',
+                word,
+                translations,
+                linkMapper: (w, t) => [w, t]
+            });
 
             await connection.commit();
 
@@ -160,7 +172,7 @@ class DB {
         } catch (e) {
             await connection.rollback();
             console.error(e);
-            throw new Error(e);
+            throw new Error('Error adding EN-RU translations', { cause: e })
         } finally {
             connection.release();
         }
@@ -176,38 +188,15 @@ class DB {
 
         try {
             await connection.beginTransaction();
-            let wordId = '';
 
-            // Check if word is already exist in db
-            const existId = await this.getWordId({ connection, dbName: 'russian_words', word });
-            if (existId !== false) {
-                // If it is - get it's id
-                wordId = existId;
-            } else {
-                // If not exist - add it and get it's id
-                wordId = await this.insertWord({ connection, dbName: 'russian_words', word });
-            }
-
-            const translationIds = [];
-
-            for (const translation of translations) {
-                if (!translation) {
-                    continue;
-                }
-
-                const existTranslationId = await this.getWordId({ connection, dbName: 'english_words', word: translation });
-
-                if (existTranslationId !== false) {
-                    translationIds.push(existTranslationId);
-                } else {
-                    translationIds.push(await this.insertWord({ connection, dbName: 'english_words', word: translation }));
-                }
-            }
-
-            await connection.query(`
-                INSERT IGNORE INTO en_ru_links (en_id, ru_id)
-                VALUES ?
-            `, [translationIds.map(e => [e, wordId])]);
+            await this.#addTranslations({
+                connection,
+                wordDBName: 'russian_words',
+                translationsDBName: 'english_words',
+                word,
+                translations,
+                linkMapper: (w, t) => [t, w]
+            });
 
             await connection.commit();
 
@@ -215,7 +204,7 @@ class DB {
         } catch (e) {
             await connection.rollback();
             console.error(e);
-            throw new Error(e);
+            throw new Error('Error adding RU-EN translations', { cause: e });
         } finally {
             connection.release();
         }

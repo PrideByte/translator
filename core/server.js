@@ -1,9 +1,10 @@
 const http = require('http');
-const fs = require('fs/promises');
+const { createReadStream } = require('fs');
+const { pipeline } = require('stream/promises');
 const path = require('path');
 const { DB } = require('../db/queries');
 const { port, defaultOrigin } = require('../shared/const.js');
-const { sanitizeURLParams } = require('../shared/utils.js');
+const { sanitizeURLParams, resolvePath } = require('../shared/utils.js');
 const dispatcher = require('./dispatcher.js');
 const handlePage = require('./controller.js');
 const pages = require('../pages/index.js');
@@ -44,35 +45,48 @@ function setSecurityHeaders(response) {
 }
 
 async function serveStatic(filePath, response) {
+    const types = {
+        '.js': 'application/javascript; charset=utf-8',
+        '.css': 'text/css; charset=utf-8',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.svg': 'image/svg+xml',
+        '.html': 'text/html; charset=utf-8',
+        '.ico': 'image/x-icon',
+        '.woff': 'font/woff',
+        '.woff2': 'font/woff2'
+    };
+
     try {
-        const full = path.join(__dirname, '../', filePath);
-        const data = await fs.readFile(full);
-        const ext = path.extname(full).toLowerCase();
-        const types = {
-            '.js': 'application/javascript; charset=utf-8',
-            '.css': 'text/css; charset=utf-8',
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.svg': 'image/svg+xml',
-            '.html': 'text/html; charset=utf-8',
-            '.ico': 'image/x-icon'
-        };
-        sendResponse(response, {
-            data,
-            headers: {
-                'Content-Type': types[ext] || 'application/octet-stream'
-            },
-            statusCode: 200
+        const relativePath = filePath.replace(/^\/static\//, '');
+
+        const safePath = resolvePath({
+            baseDir: path.join(__dirname, '../static/'),
+            src: relativePath,
+            allowedExtensions: Object.keys(types)
         });
+
+        const ext = path.extname(safePath).toLowerCase();
+
+        response.writeHead(200, {
+            'Content-Type': types[ext] || 'application/octet-stream',
+            'Cache-Control': 'public, max-age=31536000'
+        });
+
+        await pipeline(createReadStream(safePath), response);
+
     } catch (err) {
-        console.error(err);
-        sendResponse(response, {
-            data: 'Not found',
-            headers: {
-                'Content-Type': 'text/plain; charset=utf-8'
-            },
-            statusCode: 404
-        });
+        console.error('Static reading error:', err);
+
+        if (!response.headersSent && !response.writableEnded) {
+            sendResponse(response, {
+                data: 'Not found',
+                headers: {
+                    'Content-Type': 'text/plain; charset=utf-8'
+                },
+                statusCode: 404
+            });
+        }
     }
 }
 
@@ -134,16 +148,9 @@ async function startServer() {
                 url: {
                     pathname: replacedUrl.pathname,
                     params: Object.fromEntries(replacedUrl.searchParams)
-                }
+                },
+                servicePages
             });
-
-            if (result.type && (result.type === 'not_found')) {
-                result.data = servicePages[404].html;
-                result.headers = {
-                    'Content-Type': 'text/html; charset=utf-8'
-                };
-                result.statusCode = servicePages[404].statusCode;
-            }
 
             sendResponse(response, result);
         } catch (err) {

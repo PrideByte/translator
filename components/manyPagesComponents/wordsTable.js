@@ -31,7 +31,7 @@ async function checkURLParams({ db, url }) {
 			constraints: {
 				constraints: Object.fromEntries(normalizedParams),
 				statusCode: 301,
-				type: 'redirectPage'
+				type: 'redirect'
 			}
 		}
 		: {
