@@ -65,15 +65,14 @@ function resolvePath({ baseDir, src, allowedExtensions = [] }) {
 }
 
 function sanitizeURLParams(searchParams) {
-	const rawParams = [...searchParams.entries()];
-	const result = new URLSearchParams();
-	for (let i = 0; i < rawParams.length; i++) {
-		if (rawParams[i][0] && rawParams[i][1] && !result.has(rawParams[0])) {
-			result.set(rawParams[i][0], rawParams[i][1]);
-		}
-	}
+    const result = new URLSearchParams();
+    for (const [key, value] of searchParams.entries()) {
+        if (key && value && !result.has(key)) {
+            result.set(key, value);
+        }
+    }
 
-	return result;
+    return result;
 }
 
 function testLang(word, ruTest) {

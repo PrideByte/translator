@@ -1,6 +1,6 @@
 const http = require('http');
 const { createReadStream } = require('fs');
-const { pipeline } = require('stream/promises');
+const { pipeline, finished } = require('stream/promises');
 const path = require('path');
 const { DB } = require('../db/queries');
 const { port, defaultOrigin } = require('../shared/const.js');
@@ -106,35 +106,31 @@ async function startServer() {
     };
 
     http.createServer(async (request, response) => {
+        const start = Date.now();
+
         try {
             setSecurityHeaders(response);
 
             const rawUrl = new URL(request.url, `http://${request.headers.host}`);
-            const replacedUrl = new URL(request.url.replaceAll(/\/{2,}/g, '/'), `http://${request.headers.host}`);
-            const rawParams = replacedUrl.searchParams;
-            const sanitizedParams = sanitizeURLParams(rawParams);
-            let isURLCorrect = true;
+            const [beforeHash] = request.url.split('#');
+            const [pathPart, queryPart] = beforeHash.split('?');
+            const normalizedPath = pathPart.replace(/\/+/g, '/');
+            const normalizedUrl = new URL(normalizedPath, `http://${request.headers.host}`);
+            normalizedUrl.search = (queryPart ? queryPart : ''); 
+            normalizedUrl.search = sanitizeURLParams(normalizedUrl.searchParams).toString();
 
-            for (const [key, value] of rawParams.entries()) {
-                if (!sanitizedParams.has(key) || sanitizedParams.get(key) !== rawParams.get(key)) {
-                    isURLCorrect = false;
-                }
-            }
-
-            if (rawUrl.href !== replacedUrl.href || !isURLCorrect) {
+            if (decodeURIComponent(rawUrl.href) !== decodeURIComponent(normalizedUrl.href)) {
                 sendResponse(response, {
                     data: undefined,
                     headers: {
-                        'Location': sanitizedParams.toString()
-                            ? new URL(`${replacedUrl.origin}${replacedUrl.pathname}?${sanitizedParams.toString()}`)
-                            : new URL(`${replacedUrl.origin}${replacedUrl.pathname}`)
+                        'Location': normalizedUrl.toString()
                     },
                     statusCode: 301
                 });
                 return;
             }
 
-            const pathname = decodeURIComponent(replacedUrl.pathname).match(/(.+?)\/?$/)[1];
+            const pathname = decodeURIComponent(normalizedUrl.pathname).match(/(.+?)\/?$/)[1];
 
             if (pathname.startsWith('/static/')) {
                 await serveStatic(pathname, response);
@@ -146,8 +142,8 @@ async function startServer() {
                 pathname,
                 db: dataBase,
                 url: {
-                    pathname: replacedUrl.pathname,
-                    params: Object.fromEntries(replacedUrl.searchParams)
+                    pathname: normalizedUrl.pathname,
+                    params: Object.fromEntries(normalizedUrl.searchParams)
                 },
                 servicePages
             });
@@ -164,6 +160,13 @@ async function startServer() {
                 },
                 statusCode: result.statusCode
             });
+        } finally {
+            try {
+                await finished(response);
+                console.log(`[${request.method}] ${request.url} | ${response.statusCode} | ${Date.now() - start}ms | OK`);
+            } catch (error) {
+                console.warn(`[${request.method}] ${request.url} | ${response.statusCode} | ${Date.now() - start}ms | ABORTED/ERROR: ${err.message}`);
+            }
         }
     }).listen(port, () => {
         console.log(`✅ Server running on http://localhost:${port}`);

@@ -42,7 +42,6 @@ async function parseFormData(request) {
 
             // 1MiB
             if (bodyLength > 1 * settings.sizesDictionary.MB) {
-                request.destroy();
                 reject({
                     statusCode: 413,
                     data: 'Content is too large'
@@ -110,7 +109,7 @@ async function dispatcher({ request, pathname, db, url, servicePages }) {
         try {
             body = await parseFormData(request);
         } catch (e) {
-            return throwSystemError({ statusCode: 500, data: e });
+            return throwSystemError(e);
         }
     }
 

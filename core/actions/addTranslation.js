@@ -23,6 +23,7 @@ function addError(errors, field, message) {
     errors[field].push(message);
 }
 
+//ToDo Вынести валидацию в JSON Schema
 async function post({ body, db, url }) {
     const garbageTest = new RegExp(/^[^a-zA-Zа-яёА-ЯЁ]+$/ui);
     const errors = {};
