@@ -3,7 +3,7 @@ const nav = require('./nav.js');
 const button = require('./button.js');
 const pagination = require('./pagination.js');
 const limit = require('./limitByPage.js');
-const translationform = require('./addTranslation.js');
+const translationform = require('./translation.js');
 
 module.exports = {
     "logo-component": logo,

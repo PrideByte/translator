@@ -18,8 +18,7 @@ function generateLayout(meta, body, initialState = {}) {
       <meta name="description" content="${escapeHtml(meta?.description)}">
       <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
 
-      <link rel="stylesheet" href="/static/assets/fonts.css"/>
-      <link rel="stylesheet" href="/static/assets/style.css">
+      <link rel="stylesheet" href="/static/assets/style.css" fetchpriority="high">
       ${initialData}
       <script defer src="/static/assets/client.js"></script>
     </head>

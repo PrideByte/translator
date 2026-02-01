@@ -1,7 +1,9 @@
-const addTranslation = require('./addTranslation.js');
+const translation = require('./translation.js');
 
 module.exports = {
-    '/addtranslation': {
-        'POST': addTranslation.post
+    '/translation': {
+        'POST': translation.post,
+        'PUT': translation.put,
+        'DELETE': translation.delete
     }
 }

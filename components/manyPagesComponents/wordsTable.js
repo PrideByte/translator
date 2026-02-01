@@ -81,14 +81,14 @@ function render(opts) {
 	}
 
 	return `
-		<div class="${CSSclass}__wrapper">
+		<form method="POST" action="/translation" class="${CSSclass}__wrapper">
 			<table class="${CSSclass}">
 				<thead class="${CSSclass}__header">
 					<tr class="${CSSclass}__row">
 					<th class="${CSSclass}__cell" scope="col">
 						English
 					</th>
-					<th class="${CSSclass}__cell" scope="col">
+					<th class="${CSSclass}__cell" scope="col" collspan="2">
 						Русский
 					</th>
 					</tr>
@@ -97,7 +97,7 @@ function render(opts) {
 					${rows}
 				</tbody>
 			</table>
-		</div>
+		</form>
 	`;
 }
 

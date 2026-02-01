@@ -77,5 +77,5 @@ module.exports = {
     "/": loadTemplate('./main.template'),
     "/404": loadTemplate('./service/404.template'),
     "/500": loadTemplate('./service/500.template'),
-    "/addtranslation": loadTemplate('./addTranslation.template')
+    "/translation": loadTemplate('./translation.template')
 }

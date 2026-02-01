@@ -20,7 +20,7 @@
                 <button-component
                     key="isAddTranslationModalOpen"
                     class="btn btn-secondary"
-                    href="/addtranslation">
+                    href="/translation">
                     Добавить перевод
                 </button-component>
             </div>

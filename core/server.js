@@ -165,7 +165,7 @@ async function startServer() {
                 await finished(response);
                 console.log(`[${request.method}] ${request.url} | ${response.statusCode} | ${Date.now() - start}ms | OK`);
             } catch (error) {
-                console.warn(`[${request.method}] ${request.url} | ${response.statusCode} | ${Date.now() - start}ms | ABORTED/ERROR: ${err.message}`);
+                console.warn(`[${request.method}] ${request.url} | ${response.statusCode} | ${Date.now() - start}ms | ABORTED/ERROR: ${error.message}`);
             }
         }
     }).listen(port, () => {

@@ -22,14 +22,19 @@ class DB {
 
     getWordsNumber = async function() {
         // Get english words number and russian words number
-        [ { count: this.enWordsNumber }, { count: this.ruWordsNumber } ] = (
+        const result = (
             await this.pool.query(`
-                SELECT COUNT(id) AS count
+                SELECT 'en' as lang, COUNT(id) AS count
                 FROM english_words
                 UNION
-                SELECT COUNT(id) AS count
+                SELECT 'ru' as lang, COUNT(id) AS count
                 FROM russian_words;`)
         )[0];
+
+        result.forEach(row => {
+            (row.lang === 'en') && (this.enWordsNumber = row.count);
+            (row.lang === 'ru') && (this.ruWordsNumber = row.count);
+        });
     }
 
     getPageMetaByPath = async function(path) {
@@ -106,11 +111,11 @@ class DB {
         return result.length ? result[0].id : false;
     }
 
-    #insertWord = async function({ connection, dbName, word }) {
-        const [result] = await connection.execute(`
+    #insertWords = async function({ connection, dbName, words }) {
+        const [result] = await connection.query(`
             INSERT INTO ${dbName} (word)
-            VALUES (?)
-        `, [word]);
+            VALUES ?
+        `, [words]);
 
         return result.insertId;
     }
@@ -126,22 +131,32 @@ class DB {
             wordId = existId;
         } else {
             // If not exist - add it and get it's id
-            wordId = await this.#insertWord({ connection, dbName: wordDBName, word });
+            wordId = await this.#insertWords({ connection, dbName: wordDBName, words: [[word]] });
         }
 
+        
+        const [existingRows] = await connection.query(
+            `SELECT id, word FROM ${translationsDBName} WHERE word IN (?)`,
+            [translations]
+        );
+        const existingMap = new Map(existingRows.map(row => [row.word, row.id]));
+
         const translationIds = [];
+        const wordsToInsert = [];
 
         for (const translation of translations) {
-            if (!translation) {
-                continue;
-            }
-
-            const existTranslationId = await this.#getWordId({ connection, dbName: translationsDBName, word: translation });
-
-            if (existTranslationId !== false) {
-                translationIds.push(existTranslationId);
+            if (existingMap.has(translation)) {
+                translationIds.push(existingMap.get(translation));
             } else {
-                translationIds.push(await this.#insertWord({ connection, dbName: translationsDBName, word: translation }));
+                wordsToInsert.push([translation]);
+            }
+        }
+
+        if (wordsToInsert.length > 0) {
+            const insertResult = await this.#insertWords({ connection, dbName: translationsDBName, words: wordsToInsert });
+
+            for (let i = 0; i < wordsToInsert.length; i++) {
+                translationIds.push(insertResult + i);
             }
         }
 
@@ -213,6 +228,58 @@ class DB {
         result[word] = translations;
 
         return result;
+    }
+
+    removeWordAndTranslationsByWord = async function name(word) {
+        const connection = await this.pool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            const [rows] = await connection.execute(`
+                SELECT english_words.id as wordID, GROUP_CONCAT(en_ru_links.ru_id) as translationIDs
+                FROM english_words
+                LEFT JOIN en_ru_links
+                    ON english_words.id = en_ru_links.en_id
+                WHERE english_words.word = ?
+                GROUP BY english_words.id;
+            `, [word]);
+
+            if (!rows.length) {
+                throw new Error(`Word "${word}" not in base`);
+            }
+
+            const { wordID, translationIDs } = rows[0];
+
+            // await connection.execute('DELETE FROM en_ru_links WHERE en_id = ?', [wordID]);
+            await connection.execute('DELETE FROM english_words WHERE id = ?', [wordID]);
+
+            if (translationIDs) {
+                const ruIdArray = translationIDs.split(',');
+                await connection.query(`
+                    DELETE russian_words
+                    FROM russian_words
+                    LEFT JOIN en_ru_links
+                        ON russian_words.id = en_ru_links.ru_id
+                    WHERE russian_words.id
+                        IN (?) 
+                        AND en_ru_links.ru_id IS NULL;
+                `, [ruIdArray]);
+            }
+
+            await connection.commit();
+
+            await this.getWordsNumber();
+
+        } catch (e) {
+            await connection.rollback();
+            console.error(e);
+            throw new Error(`Error removing word "${word}" from the base`, { cause: e });
+        } finally {
+            connection.release();
+        }
+
+        return true;
     }
 }
 

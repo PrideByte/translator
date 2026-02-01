@@ -44,7 +44,7 @@ function render(opts) {
     }
 
     return `
-        <form class="${CSSclass}" method="POST" action="/addtranslation">
+        <form class="${CSSclass}" method="POST" action="/translation">
             <header class="${CSSclass}__header">
                 <h2 class="${CSSclass}__title">
                     Добавить перевод

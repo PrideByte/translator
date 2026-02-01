@@ -21,6 +21,10 @@ function render(opts) {
         ${lines}
         </ul>
       </td>
+      <td class="${opts.class}__cell">
+      <button class="btn btn-secondary" type="submit" name="PUT" value="${opts.data.key}">Изменить</button>
+      <button class="btn btn-secondary" type="submit" name="DELETE" value="${opts.data.key}">Удалить</button>
+      </td>
     </tr>
   `;
 }

@@ -109,7 +109,7 @@ async function dispatcher({ request, pathname, db, url, servicePages }) {
         try {
             body = await parseFormData(request);
         } catch (e) {
-            return throwSystemError(e);
+            return throwSystemError({ statusCode: e.statusCode || 400, data: e.data || e.message });
         }
     }
 
@@ -126,18 +126,17 @@ async function dispatcher({ request, pathname, db, url, servicePages }) {
     }
 
     // Action must return:
-    // { success: true, type: responseMap[type], ...payload }
+    // { success: true, type: responseMap[type], pathname, ...payload }
     // or
-    // { success: false, type: responseMap[type], ...payload }
-    if (resultAction.success) {
-        return responseMap[resultAction.type](resultAction, resourceURL);
-    } else {
-        if (!actions[pathname]['GET']) {
+    // { success: false, type: responseMap[type], pathname, ...payload }
+    if (resultAction.type && resultAction.type === 'continue') {
+        if (!actions[resultAction.pathname]['GET']) {
             return throwSystemError({ statusCode: 400, data: `Action ${method}:${pathname} failed and no GET template available` });
         }
+
         const renderPage = await handlePage({
-            pageTemplate: actions[pathname]['GET'],
-            pageMeta: JSON.parse((await db.getPageMetaByPath(pathname))?.meta || "{}"),
+            pageTemplate: actions[resultAction.pathname]['GET'],
+            pageMeta: JSON.parse((await db.getPageMetaByPath(resultAction.pathname))?.meta || "{}"),
             db,
             url,
             statusCode: 200,
@@ -146,6 +145,8 @@ async function dispatcher({ request, pathname, db, url, servicePages }) {
 
         return responseMap[renderPage.type](renderPage, resourceURL);
     }
+
+    return responseMap[resultAction.type](resultAction, resourceURL);
 }
 
 module.exports = dispatcher;
