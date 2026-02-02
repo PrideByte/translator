@@ -115,7 +115,7 @@ async function dispatcher({ request, pathname, db, url, servicePages }) {
 
     let resultAction;
     try {
-        resultAction = await actions[pathname][method]({ body, db, url: resourceURL.pathname });
+        resultAction = await actions[pathname][method]({ body, db, url });
     } catch (e) {
         console.error('Action execution failed:', e);
         return throwSystemError({ statusCode: 500, data: `Action ${method}:${pathname} execution error` });
@@ -130,6 +130,7 @@ async function dispatcher({ request, pathname, db, url, servicePages }) {
     // or
     // { success: false, type: responseMap[type], pathname, ...payload }
     if (resultAction.type && resultAction.type === 'continue') {
+
         if (!actions[resultAction.pathname]['GET']) {
             return throwSystemError({ statusCode: 400, data: `Action ${method}:${pathname} failed and no GET template available` });
         }
@@ -139,7 +140,7 @@ async function dispatcher({ request, pathname, db, url, servicePages }) {
             pageMeta: JSON.parse((await db.getPageMetaByPath(resultAction.pathname))?.meta || "{}"),
             db,
             url,
-            statusCode: 200,
+            statusCode: resultAction.statusCode,
             messages: resultAction.messages
         });
 

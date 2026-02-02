@@ -23,25 +23,15 @@ function addError(errors, field, message) {
     errors[field].push(message);
 }
 
-//ToDo Вынести валидацию в JSON Schema
-async function post({ body, db, url }) {
-    if (body['PUT']) {
-        return put({ body, db, url });
-    }
-
-    if (body['DELETE']) {
-        return deleteMethod({ body, db, url });
-    }
-
+function validateInput({ errors, body }) {
     const garbageTest = new RegExp(/^[^a-zA-Zа-яёА-ЯЁ]+$/ui);
-    const errors = {};
     const word = escapeHtml(body['word'] || '').trim().replace(garbageTest, '');
     let translations;
 
     if (!body['translations']) {
         translations = [];
     } else if (!Array.isArray(body['translations'])) {
-        translations = [ body['translations'].trim().replace(garbageTest, '') ];
+        translations = [body['translations'].trim().replace(garbageTest, '')];
     } else {
         translations = body['translations'];
     }
@@ -75,26 +65,53 @@ async function post({ body, db, url }) {
         ? translations.some(el => testLang(el, true))
         : translations.some(el => testLang(el, false));
 
-    const isWordGarbage = !word || garbageTest.test(word);
-    if (isAnyOfTranslationsSameLang && !isWordGarbage && translations.length) {
+    if (isAnyOfTranslationsSameLang && word && translations.length) {
         addError(errors, 'translations', 'В одной из строк язык перевода совпадает с исходным');
     }
 
+    return { word, translations, isWordRu };
+}
+
+function doContinue({errors, body, wordID}) {
+    const normalizedBody = { ...body };
+    if (wordID) {
+        normalizedBody['wordID'] = wordID;
+    }
+
+    if (normalizedBody.translations && !Array.isArray(normalizedBody.translations)) {
+        normalizedBody.translations = [normalizedBody.translations];
+    }
+    return {
+        success: false,
+        type: 'continue',
+        statusCode: 400,
+        pathname: '/translation',
+        messages: {
+            initial: { ...normalizedBody },
+            errors
+        }
+    }
+}
+
+//ToDo Вынести валидацию в JSON Schema
+async function post({ body, db, url }) {
+    // Fallback - проверки для non-JS версии сайта
+    const method = body.method?.toUpperCase();
+
+    if (method === 'DELETE') {
+        return deleteMethod({ body, db, url });
+    }
+
+    if (method === 'PUT') {
+        return put({ body, db, url });
+    }
+
+    const errors = {};
+
+    const { word, translations, isWordRu } = validateInput({ errors, body });
+
     if (Object.values(errors).length) {
-        const normalizedBody = { ...body };
-        if (normalizedBody.translations && !Array.isArray(normalizedBody.translations)) {
-            normalizedBody.translations = [ normalizedBody.translations ]
-        }
-        return {
-            success: false,
-            type: 'continue',
-            statusCode: 400,
-            pathname: '/translation',
-            messages: {
-                initial: { ...normalizedBody },
-                errors
-            }
-        }
+        return doContinue({ errors, body });
     }
 
     let result = {};
@@ -105,7 +122,8 @@ async function post({ body, db, url }) {
             result = await db.addEnToRuTranslations({ word, translations });
         }
     } catch (e) {
-        throw new Error('Error adding translation to database', { cause: e });
+        console.error(e);
+        return doContinue({ errors, body });
     }
 
     return {
@@ -119,56 +137,65 @@ async function post({ body, db, url }) {
 }
 
 async function put({ body, db, url }) {
+    const errors = {};
+    const wordID = url.params.wordID || body['wordID'];
+    const { word, translations, isWordRu } = validateInput({ errors, body });
+
+    if (isWordRu) {
+        addError(errors, 'word', 'Изменяемое слово должно быть на исходном языке');
+    }
+
+    if (Object.values(errors).length) {
+        return doContinue({ errors, body, wordID });
+    }
+
+    let result = {};
+    // Изменения в базе
+    try {
+        result = await db.updateTranslationsById({wordID, word, translations});
+    } catch (e) {
+        addError(errors, 'word', e.message);
+        console.error(e);
+        return doContinue({ errors, body, wordID });
+    }
+
     return {
         success: true,
         type: 'redirect',
         statusCodeJSON: 201,
         statusCode: 303,
         pathname: '/',
-        data: `Method PUT on ${url} executed and succeed`
+        data: result
     };
 }
 
 async function deleteMethod({ body, db, url }) {
-    const garbageTest = new RegExp(/^[^a-zA-Zа-яёА-ЯЁ]+$/ui);
     const errors = {};
-    const keyRaw = body['DELETE'] || body.word;
-    const key = escapeHtml(keyRaw || '').trim().replace(garbageTest, '');
+    const rawID = body['wordID'] || url.params.wordID;
+    const ID = parseInt(rawID, 10);
 
-    if (!key.length) {
-        addError(errors, 'word', 'Отсутствует слово для удаления!');
+    if (!ID) {
+        addError(errors, 'wordID', 'Некорректный идентификатор записи');
     } else {
         try {
-            await db.removeWordAndTranslationsByWord(key);
+            await db.removeWordAndTranslationsByID(ID);
         } catch (e) {
-            addError(errors, 'word', e);
+            console.error(e);
+            addError(errors, 'wordID', e.message);
         }
     }
 
     if (Object.values(errors).length) {
-        const normalizedBody = { ...body };
-        if (normalizedBody.translations && !Array.isArray(normalizedBody.translations)) {
-            normalizedBody.translations = [ normalizedBody.translations ]
-        }
-        return {
-            success: false,
-            type: 'redirect',
-            statusCode: 400,
-            pathname: '/',
-            messages: {
-                initial: { ...normalizedBody },
-                errors
-            }
-        }
+        return doContinue({ errors, body });
     }
 
     return {
         success: true,
         type: 'redirect',
-        statusCodeJSON: 204,
+        statusCodeJSON: 200,
         statusCode: 303,
         pathname: '/',
-        data: `"${key}" word and its translations has been deleted successfully`
+        data: `Word with ID "${ID}" and its translations has been deleted successfully`
     };
 }
 

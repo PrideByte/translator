@@ -1,7 +1,27 @@
-async function requiredData({ attrs, messages }) {
-    return !Object.entries(messages).length ? {} : {
-        data: messages
-    };
+async function requiredData({ db, url, messages }) {
+    const data = {};
+    const wordID = parseInt(url.params?.wordID, 10) || parseInt(messages?.initial?.wordID, 10);
+
+    data.data = {};
+
+    if (!isNaN(wordID)) {
+        data.data['wordID'] = wordID;
+    } else {
+        data.data['wordID'] = null;
+    }
+
+    if (Object.entries(messages).length) {
+        for (const [key, value] of Object.entries(messages)) {
+            data.data[key] = value;
+        }
+    } else if (!isNaN(wordID)) {
+        const initial = await db.getTranslationsByID(wordID);
+
+        data.data['initial'] = initial;
+        data.data['errors'] = null;
+    }
+    
+    return data;
 }
 
 function renderRows({ errors, CSSclass, data }) {
@@ -44,7 +64,7 @@ function render(opts) {
     }
 
     return `
-        <form class="${CSSclass}" method="POST" action="/translation">
+        <form class="${CSSclass}" method="POST" action="/translation${opts.data.wordID ? `?wordID=${opts.data.wordID}` : ''}">
             <header class="${CSSclass}__header">
                 <h2 class="${CSSclass}__title">
                     Добавить перевод
@@ -58,14 +78,14 @@ function render(opts) {
                     <label class="${CSSclass}__label">Слово или предложение</label>
                     <input class="${CSSclass}__input${wordErrors
                         ? ` ${CSSclass}__fielderr`
-                        : ''}" name="word" type="text" placeholder="Слово или предложение"${opts.data?.errors ? ` value="${opts.data.initial.word}"` : ''} autofocus required>
+                        : ''}" name="word" type="text" placeholder="Слово или предложение"${opts.data?.initial?.word ? ` value="${opts.data.initial.word}"` : ''} autofocus required>
                     ${wordErrors ? `<div class="${CSSclass}__errors">${wordErrors}</div>` : ''}
                 </div>
 
                 <div class="${CSSclass}__group">
                     <fieldset class="${CSSclass}__group${translationErrors ? ` ${CSSclass}__fielderr` : ''}">
                         <legend>Переводы</legend>
-                        ${renderRows({ errors: Boolean(opts.data?.errors), CSSclass, data: opts.data?.initial?.translations || [] })}
+                        ${renderRows({ errors: Boolean(opts.data?.initial?.translations), CSSclass, data: opts.data?.initial?.translations || [] })}
 
                         <button class="btn btn-secondary" type="button">
                             + Добавить перевод
@@ -83,6 +103,8 @@ function render(opts) {
                     Добавить
                 </button>
             </footer>
+            ${opts.data.wordID ? `<input type="hidden" name="wordID" value="${opts.data.wordID}">` : ''}
+            ${opts.data.wordID ? '<input type="hidden" name="method" value="PUT">' : ''}
         </form>
     `;
 }

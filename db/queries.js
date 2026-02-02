@@ -6,7 +6,7 @@ class DB {
         this.pool = mysql.createPool(opts);
     }
 
-    init = async function() {
+    init = async function () {
         await this.getWordsNumber();
 
         // Get pages list
@@ -20,7 +20,7 @@ class DB {
         });
     }
 
-    getWordsNumber = async function() {
+    getWordsNumber = async function () {
         // Get english words number and russian words number
         const result = (
             await this.pool.query(`
@@ -37,7 +37,7 @@ class DB {
         });
     }
 
-    getPageMetaByPath = async function(path) {
+    getPageMetaByPath = async function (path) {
         const res = (await this.pool.query(`
             SELECT meta
             FROM pages
@@ -47,7 +47,7 @@ class DB {
         return res[0];
     }
 
-    getWordsCountByWord = async function(word = '') {
+    getWordsCountByWord = async function (word = '') {
         const [result] = await this.pool.query(`
             SELECT COUNT(id) as count
             FROM english_words
@@ -57,7 +57,28 @@ class DB {
         return result[0];
     }
 
-    getTranslationsByWord = async function({word = null, limit = 10, page = 1}) {
+    getTranslationsByID = async function (id) {
+        const [rawData] = await this.pool.query(`
+            SELECT \`english_words\`.\`word\` AS en_word, \`russian_words\`.\`word\` AS ru_word
+            FROM \`en_ru_links\`
+            LEFT JOIN \`russian_words\`
+                ON \`en_ru_links\`.\`ru_id\` = \`russian_words\`.\`id\`
+            LEFT JOIN \`english_words\`
+                ON \`en_ru_links\`.\`en_id\` = \`english_words\`.\`id\`
+            WHERE \`english_words\`.\`id\` = ?;
+        `, [id]);
+
+        if (!rawData.length) {
+            return {};
+        }
+
+        return {
+            word: rawData[0].en_word,
+            translations: rawData.map(e => e['ru_word'])
+        };
+    }
+
+    getTranslationsByWord = async function ({ word = null, limit = 10, page = 1 }) {
         const { limitList } = settings;
         limit = Number(limit);
         limit = (limitList.includes(limit)) ? limit : 10;
@@ -75,43 +96,47 @@ class DB {
         }
 
         const [result] = await this.pool.query(`
-            SELECT en_words.word, russian_words.word as ru_word
+            SELECT en_words.word AS word, en_words.id AS id, russian_words.word AS ru_word
             FROM russian_words
             INNER JOIN en_ru_links
             ON russian_words.id = en_ru_links.ru_id
             INNER JOIN (
                 SELECT english_words.*
                 FROM english_words
-                WHERE (? IS NULL OR english_words.word = ?)
+                WHERE (? IS NULL OR english_words.word LIKE ?)
                 LIMIT ? OFFSET ?
             ) AS en_words
             ON en_words.id = en_ru_links.en_id;
-        `, [word, word, limit, offset]);
-        
+        `, [word, `%${word}%`, limit, offset]);
+
         const wordsHash = result.reduce((acc, row) => {
             if (!acc[row.word]) {
-                acc[row.word] = [];
+                acc[row.word] = {};
             }
-            
-            acc[row.word].push(row.ru_word);
+
+            if (!acc[row.word]['translations']) {
+                acc[row.word]['translations'] = [];
+            }
+
+            acc[row.word].id = row.id;
+            acc[row.word].translations.push(row.ru_word);
             return acc;
         }, {});
 
         return wordsHash;
     }
 
-    #getWordId = async function({ connection, dbName, word }) {
+    #getWordId = async function ({ connection, dbName, word }) {
         const [result] = await connection.execute(`
             SELECT id
             FROM ${dbName}
             WHERE word = ?;
         `, [word]);
 
-
         return result.length ? result[0].id : false;
     }
 
-    #insertWords = async function({ connection, dbName, words }) {
+    #insertWords = async function ({ connection, dbName, words }) {
         const [result] = await connection.query(`
             INSERT INTO ${dbName} (word)
             VALUES ?
@@ -120,7 +145,7 @@ class DB {
         return result.insertId;
     }
 
-    #addTranslations = async function({ connection, wordDBName, translationsDBName, word, translations, linkMapper }) {
+    #addTranslations = async function ({ connection, wordDBName, translationsDBName, word, translations, linkMapper }) {
         let wordId = '';
 
         // Check if word is already exist in db
@@ -134,7 +159,7 @@ class DB {
             wordId = await this.#insertWords({ connection, dbName: wordDBName, words: [[word]] });
         }
 
-        
+
         const [existingRows] = await connection.query(
             `SELECT id, word FROM ${translationsDBName} WHERE word IN (?)`,
             [translations]
@@ -166,7 +191,7 @@ class DB {
         `, [translationIds.map(e => linkMapper(wordId, e))]);
     }
 
-    addEnToRuTranslations = async function({ word, translations }) {
+    addEnToRuTranslations = async function ({ word, translations }) {
         const connection = await this.pool.getConnection();
 
         try {
@@ -198,7 +223,7 @@ class DB {
         return result;
     }
 
-    addRuToEnTranslations = async function({ word, translations }) {
+    addRuToEnTranslations = async function ({ word, translations }) {
         const connection = await this.pool.getConnection();
 
         try {
@@ -230,32 +255,28 @@ class DB {
         return result;
     }
 
-    removeWordAndTranslationsByWord = async function name(word) {
+    removeWordAndTranslationsByID = async function name(wordID) {
         const connection = await this.pool.getConnection();
 
         try {
             await connection.beginTransaction();
 
             const [rows] = await connection.execute(`
-                SELECT english_words.id as wordID, GROUP_CONCAT(en_ru_links.ru_id) as translationIDs
-                FROM english_words
-                LEFT JOIN en_ru_links
-                    ON english_words.id = en_ru_links.en_id
-                WHERE english_words.word = ?
-                GROUP BY english_words.id;
-            `, [word]);
+                SELECT en_ru_links.ru_id as translationID
+                FROM en_ru_links
+                WHERE en_ru_links.en_id = ?;
+            `, [wordID]);
 
-            if (!rows.length) {
-                throw new Error(`Word "${word}" not in base`);
-            }
-
-            const { wordID, translationIDs } = rows[0];
+            const translationIDs = rows.map(e => e.translationID);
 
             // await connection.execute('DELETE FROM en_ru_links WHERE en_id = ?', [wordID]);
-            await connection.execute('DELETE FROM english_words WHERE id = ?', [wordID]);
+            const [delResult] = await connection.execute('DELETE FROM english_words WHERE id = ?', [wordID]);
+
+            if (!delResult.affectedRows) {
+                throw new Error(`Word with ID "${wordID}" not found`);
+            }
 
             if (translationIDs) {
-                const ruIdArray = translationIDs.split(',');
                 await connection.query(`
                     DELETE russian_words
                     FROM russian_words
@@ -264,7 +285,7 @@ class DB {
                     WHERE russian_words.id
                         IN (?) 
                         AND en_ru_links.ru_id IS NULL;
-                `, [ruIdArray]);
+                `, [translationIDs]);
             }
 
             await connection.commit();
@@ -274,12 +295,71 @@ class DB {
         } catch (e) {
             await connection.rollback();
             console.error(e);
-            throw new Error(`Error removing word "${word}" from the base`, { cause: e });
+            throw new Error(`Error removing word with ID "${wordID}": ${e.message}`);
         } finally {
             connection.release();
         }
 
         return true;
+    }
+
+    updateTranslationsById = async function ({ wordID, word, translations }) {
+        const connection = await this.pool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            const [isIDExist] = await connection.execute(`
+                SELECT id
+                FROM english_words
+                WHERE id = ?;
+            `, [wordID]);
+
+            if (!isIDExist.length) {
+                throw new Error(`No word with ID "${wordID}" in the base`);
+            }
+
+            await connection.execute(
+                'UPDATE english_words SET word = ? WHERE id = ?',
+                [word, wordID]
+            );
+
+            await connection.execute(
+                'DELETE FROM en_ru_links WHERE en_id = ?',
+                [wordID]
+            );
+
+            await this.#addTranslations({
+                connection,
+                wordDBName: 'english_words',
+                translationsDBName: 'russian_words',
+                word,
+                translations,
+                linkMapper: (w, t) => [w, t]
+            });
+
+            await connection.execute(`
+                DELETE russian_words
+                FROM russian_words
+                LEFT JOIN en_ru_links
+                    ON russian_words.id = en_ru_links.ru_id
+                WHERE en_ru_links.ru_id IS NULL;
+            `);
+
+            await connection.commit();
+            await this.getWordsNumber();
+        } catch (e) {
+            await connection.rollback();
+            console.error(e);
+            throw new Error(`Error updating word with ID "${wordID}": ${e.message}`);
+        } finally {
+            connection.release();
+        }
+
+        const result = {};
+        result[word] = translations;
+
+        return result;
     }
 }
 

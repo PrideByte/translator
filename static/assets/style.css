@@ -136,9 +136,9 @@ li {
 	box-shadow: inset 0 0 5px 1px var(--bg-table-head);
 	text-decoration: none;
 	transition: background-color 0.15s ease,
-		transform 0.1s ease,
-		color 0.1s ease;
-	border-color: 0.1s ease;
+				transform 0.1s ease,
+				color 0.1s ease,
+				border-color 0.1s ease;
 }
 
 .btn:active,
@@ -248,12 +248,12 @@ li {
 
 .dictionary tr th,
 .dictionary tr td {
+	width: 50%;
 	flex-grow: 0;
 	flex-shrink: 0;
 }
 
 .dictionary thead th {
-	width: 50%;
 	padding: 16px 20px;
 	background-color: var(--bg-table-head);
 	font-size: 15px;
@@ -263,7 +263,6 @@ li {
 }
 
 .dictionary tbody td {
-	width: 33%;
 	padding: 16px 20px;
 	min-height: 44px;
 	vertical-align: middle;
@@ -280,6 +279,21 @@ li {
 
 .dictionary tbody tr:last-child {
 	border-bottom: none;
+}
+
+.dictionary__actions {
+	display: flex;
+	width: max-content;
+	margin: 10px 0 0 auto;
+	gap: 10px;
+	flex-direction: row;
+}
+
+.dictionary tbody td .btn {
+	display: inline-block;
+	padding: 6px;
+	width: 34px;
+	height: 34px;
 }
 
 /* Multiple translations inside cell */

@@ -63,8 +63,9 @@ function render(opts) {
 	let rows = Object.entries(data).map(([key, value]) => {
 		return wordsRow.render({
 			data: {
-				key,
-				value
+				word: key,
+				translations: value.translations,
+				id: value.id
 			},
 			class: CSSclass
 		});
@@ -73,7 +74,7 @@ function render(opts) {
 	if (!rows.trim()) {
 		rows = `
 			<tr class="${CSSclass}__row">
-				<td class="${CSSclass}__cell ${CSSclass}__cell-colspan" colspan=2>
+				<td class="${CSSclass}__cell ${CSSclass}__cell-colspan">
 					Слов не найдено!
 				</td>
 			</tr>
@@ -97,6 +98,7 @@ function render(opts) {
 					${rows}
 				</tbody>
 			</table>
+			<input type='hidden' name='method' value='DELETE'>
 		</form>
 	`;
 }
