@@ -145,18 +145,20 @@ class DB {
         return result.insertId;
     }
 
-    #addTranslations = async function ({ connection, wordDBName, translationsDBName, word, translations, linkMapper }) {
-        let wordId = '';
+    #addTranslations = async function ({ connection, wordDBName, translationsDBName, existWordID, word, translations, linkMapper }) {
+        let wordId = existWordID || '';
 
-        // Check if word is already exist in db
-        const existId = await this.#getWordId({ connection, dbName: wordDBName, word });
-
-        if (existId !== false) {
-            // If it is - get it's id
-            wordId = existId;
-        } else {
-            // If not exist - add it and get it's id
-            wordId = await this.#insertWords({ connection, dbName: wordDBName, words: [[word]] });
+        if (!wordId) {
+            // Check if word is already exist in db
+            const existId = await this.#getWordId({ connection, dbName: wordDBName, word });
+    
+            if (existId !== false) {
+                // If it is - get it's id
+                wordId = existId;
+            } else {
+                // If not exist - add it and get it's id
+                wordId = await this.#insertWords({ connection, dbName: wordDBName, words: [[word]] });
+            }
         }
 
 
@@ -291,7 +293,6 @@ class DB {
             await connection.commit();
 
             await this.getWordsNumber();
-
         } catch (e) {
             await connection.rollback();
             console.error(e);
@@ -309,44 +310,68 @@ class DB {
         try {
             await connection.beginTransaction();
 
-            const [isIDExist] = await connection.execute(`
+            const [doIDExist] = await connection.execute(`
                 SELECT id
                 FROM english_words
                 WHERE id = ?;
             `, [wordID]);
 
-            if (!isIDExist.length) {
+            if (!doIDExist.length) {
                 throw new Error(`No word with ID "${wordID}" in the base`);
             }
 
-            await connection.execute(
-                'UPDATE english_words SET word = ? WHERE id = ?',
-                [word, wordID]
-            );
-
-            await connection.execute(
-                'DELETE FROM en_ru_links WHERE en_id = ?',
-                [wordID]
-            );
-
-            await this.#addTranslations({
-                connection,
-                wordDBName: 'english_words',
-                translationsDBName: 'russian_words',
-                word,
-                translations,
-                linkMapper: (w, t) => [w, t]
-            });
-
             await connection.execute(`
-                DELETE russian_words
-                FROM russian_words
-                LEFT JOIN en_ru_links
-                    ON russian_words.id = en_ru_links.ru_id
-                WHERE en_ru_links.ru_id IS NULL;
-            `);
+                UPDATE \`english_words\`
+                SET \`word\` = ?
+                WHERE \`id\` = ?`,
+            [word, wordID]);
+
+            const [existingTranslations] = await connection.execute(`
+                SELECT \`russian_words\`.\`word\`, \`russian_words\`.\`id\`
+                FROM \`russian_words\`
+                INNER JOIN \`en_ru_links\`
+                    ON \`en_ru_links\`.\`ru_id\` = \`russian_words\`.\`id\`
+                INNER JOIN \`english_words\`
+                    ON \`english_words\`.\`id\` = \`en_ru_links\`.\`en_id\`
+                WHERE \`english_words\`.\`id\` = ?;    
+            `, [wordID]);
+            const existingTranslationsList = existingTranslations.map(e => e.word);
+
+            const toRemove = existingTranslations.filter(el => !translations.includes(el.word));
+            const toAdd = translations.filter(el => !existingTranslationsList.includes(el));
+
+            if (toRemove.length) {
+                const toRemoveIDs = toRemove.map(e => e.id);
+                // Remove links
+                await connection.query(`
+                    DELETE FROM \`en_ru_links\`
+                    WHERE \`en_ru_links\`.\`ru_id\` IN (?) AND \`en_ru_links\`.\`en_id\` = ?;
+                `, [toRemoveIDs, wordID]);
+    
+                // Remove "orphan" words left in russian_words
+                await connection.query(`
+                    DELETE \`russian_words\`
+                    FROM \`russian_words\`
+                    LEFT JOIN \`en_ru_links\`
+                        ON \`russian_words\`.\`id\` = \`en_ru_links\`.\`ru_id\`
+                    WHERE \`russian_words\`.\`id\` IN (?) AND \`en_ru_links\`.\`ru_id\` IS NULL;
+                `, [toRemoveIDs]);
+            }
+
+            if (toAdd.length) {
+                await this.#addTranslations({
+                    connection,
+                    wordDBName: 'english_words',
+                    translationsDBName: 'russian_words',
+                    existWordID: wordID,
+                    word,
+                    translations: toAdd,
+                    linkMapper: (w, t) => [w, t]
+                });
+            }
 
             await connection.commit();
+
             await this.getWordsNumber();
         } catch (e) {
             await connection.rollback();
