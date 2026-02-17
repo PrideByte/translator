@@ -28,7 +28,7 @@ function renderRows({ errors, CSSclass, data }) {
     if (!data.length) {
         return `
             <div class="${CSSclass}__row">
-                <input class="${CSSclass}__input" name="translations" type="text" placeholder="Перевод" required>
+                <input aria-labelledby="translationsLegend" ${errors ? `aria-invalid="true" aria-describedby="translationsErrors"` : ''} class="${CSSclass}__input" name="translations" type="text" placeholder="Перевод" required>
                 <button class="btn" type="button" aria-label="Удалить перевод">
                     ×
                 </button>
@@ -41,7 +41,7 @@ function renderRows({ errors, CSSclass, data }) {
     data.forEach((element, idx) => {
         result += `
             <div class="${CSSclass}__row">
-                <input class="${CSSclass}__input" name="translations" type="text" placeholder="Перевод"${errors ? ` value="${element}"` : ''}${(idx === 0) ? ` required` : ''}>
+                <input aria-labelledby="translationsLegend" ${errors ? `aria-invalid="true" aria-describedby="translationsErrors"` : ''} class="${CSSclass}__input" name="translations" type="text" placeholder="Перевод"${errors ? ` value="${element}"` : ''}${(idx === 0) ? ` required` : ''}>
                 <button class="btn" type="button" aria-label="Удалить перевод">
                     ×
                 </button>
@@ -67,31 +67,31 @@ function render(opts) {
         <form class="${CSSclass}" method="POST" action="/translation${opts.data.wordID ? `?wordID=${opts.data.wordID}` : ''}">
             <header class="${CSSclass}__header">
                 <h2 class="${CSSclass}__title">
-                    Добавить перевод
+                    ${opts.data?.wordID ? 'Изменить' : 'Добавить'} перевод
                 </h2>
-                <p class="${CSSclass}__text">Поддерживается перевод в любом порядке (en - ru, ru - en)</p>
+                <p id="mainWordHint" class="${CSSclass}__text">Поддерживается перевод в любом порядке (en - ru, ru - en)</p>
             </header>
 
 
             <div class="${CSSclass}__body">
                 <div class="${CSSclass}__group">
-                    <label class="${CSSclass}__label">Слово или предложение</label>
-                    <input class="${CSSclass}__input${wordErrors
+                    <label for="mainWord" class="${CSSclass}__label">Слово или предложение</label>
+                    <input id="mainWord" aria-describedby="mainWordHint${wordErrors ? ` mainWordErrors` : ''}" ${wordErrors ? `aria-invalid="true"` : ''} class="${CSSclass}__input${wordErrors
                         ? ` ${CSSclass}__fielderr`
                         : ''}" name="word" type="text" placeholder="Слово или предложение"${opts.data?.initial?.word ? ` value="${opts.data.initial.word}"` : ''} autofocus required>
-                    ${wordErrors ? `<div class="${CSSclass}__errors">${wordErrors}</div>` : ''}
+                    ${wordErrors ? `<div role="alert" id="mainWordErrors" class="${CSSclass}__errors">${wordErrors}</div>` : ''}
                 </div>
 
                 <div class="${CSSclass}__group">
                     <fieldset class="${CSSclass}__group${translationErrors ? ` ${CSSclass}__fielderr` : ''}">
-                        <legend>Переводы</legend>
+                        <legend id="translationsLegend">Переводы</legend>
                         ${renderRows({ errors: Boolean(opts.data?.initial?.translations), CSSclass, data: opts.data?.initial?.translations || [] })}
 
                         <button class="btn btn-secondary" type="button">
                             + Добавить перевод
                         </button>
                     </fieldset>
-                    ${translationErrors ? `<div class="${CSSclass}__errors">${translationErrors}</div>` : ''}
+                    ${translationErrors ? `<div role="alert" id="translationsErrors" class="${CSSclass}__errors">${translationErrors}</div>` : ''}
                 </div>
             </div>
 
@@ -100,7 +100,7 @@ function render(opts) {
                     Очистить
                 </button>
                 <button type="submit" class="btn">
-                    Добавить
+                    ${opts.data?.wordID ? 'Изменить' : 'Добавить'}
                 </button>
             </footer>
             ${opts.data.wordID ? `<input type="hidden" name="wordID" value="${opts.data.wordID}">` : ''}

@@ -35,26 +35,29 @@ function render(opts) {
 
 	for (let i = left; i <= right; i++) {
 		if (i === +opts.data.urlParams.page) {
-			buttons += `<div class="btn btn-secondary" aria-current="page">${i}</div>`;
+			buttons += `<button disabled type="button" class="btn btn-secondary" aria-current="page">${i}</button>`;
 			continue;
 		}
 
 		buttons += `
 			<a href="${currentLink.replace(/(page=\d+)/ui, 'page=' + (i))}"
+				aria-label="Страница ${i}"
 				class="btn">
 				${i}
 			</a>\n
 		`;
 	}
 
-	const beforeButtonTag = +opts.data.urlParams.page === 1 ? 'div' : 'a';
-	const afterButtonTag = +opts.data.urlParams.page === opts.data.maxPages ? 'div' : 'a';
+	const beforeButtonTag = +opts.data.urlParams.page === 1 ? 'button' : 'a';
+	const afterButtonTag = +opts.data.urlParams.page === opts.data.maxPages ? 'button' : 'a';
 	const prevLink = currentLink.replace(/(page=\d+)/ui, 'page=' + Math.max(+opts.data.urlParams.page - 1, 1));
 	const nextLink = currentLink.replace(/(page=\d+)/ui, 'page=' + Math.min(+opts.data.urlParams.page + 1, opts.data.maxPages));
 	const CSSClass = opts?.attrs?.class || 'pagination';
 	return `
 		<nav key="${opts.attrs.key}" class="${CSSClass}" aria-label="Постраничная навигация">
 			<${beforeButtonTag}
+				${beforeButtonTag === 'button' ? 'disabled' : ''}
+				${beforeButtonTag === 'button' ? 'type="button"' : ''}
 				${+opts.data.urlParams.page === 1 ? '' : `href="${prevLink}"`}
 				class="btn${+opts.data.urlParams.page === 1 ? ' btn-disabled' : ''}"
 				aria-label="Предыдущая страница">
@@ -64,6 +67,8 @@ function render(opts) {
 			${buttons}
 
 			<${afterButtonTag}
+				${afterButtonTag === 'button' ? 'disabled' : ''}
+				${afterButtonTag === 'button' ? 'type="button"' : ''}
 				${+opts.data.urlParams.page === opts.data.maxPages ? '' : `href="${nextLink}"`}
 				class="btn${+opts.data.urlParams.page === opts.data.maxPages ? ' btn-disabled' : ''}"
 				aria-label="Следующая страница">

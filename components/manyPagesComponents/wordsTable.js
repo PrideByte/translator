@@ -89,7 +89,7 @@ function render(opts) {
 					<th class="${CSSclass}__cell" scope="col">
 						English
 					</th>
-					<th class="${CSSclass}__cell" scope="col" collspan="2">
+					<th class="${CSSclass}__cell" scope="col">
 						Русский
 					</th>
 					</tr>

@@ -40,7 +40,7 @@ function validateInput({ errors, body }) {
         const replaced = escapeHtml(el.trim().replace(garbageTest, ''));
 
         if (!replaced.length) {
-            const msg = 'В одной из строк перевод состоит только из спецсимволов или цифр';
+            const msg = 'Ошибка: В одной из строк перевод состоит только из спецсимволов или цифр';
 
             if (!errors['translations']?.includes(msg)) {
                 addError(errors, 'translations', msg);
@@ -53,11 +53,11 @@ function validateInput({ errors, body }) {
     translations = [...new Set(translations)];
 
     if (!word.length) {
-        addError(errors, 'word', 'Введите слово или предложение для перевода');
+        addError(errors, 'word', 'Ошибка: Некорректное слово или предложение для перевода');
     }
 
     if (!translations.length) {
-        addError(errors, 'translations', 'Введите хотя бы одну строку перевода');
+        addError(errors, 'translations', 'Ошибка: Введите хотя бы одну строку перевода');
     }
 
     const isWordRu = isWordPrimaryInRu(word);
@@ -66,7 +66,7 @@ function validateInput({ errors, body }) {
         : translations.some(el => testLang(el, false));
 
     if (isAnyOfTranslationsSameLang && word && translations.length) {
-        addError(errors, 'translations', 'В одной из строк язык перевода совпадает с исходным');
+        addError(errors, 'translations', 'Ошибка: В одной из строк язык перевода совпадает с исходным');
     }
 
     return { word, translations, isWordRu };
@@ -142,7 +142,7 @@ async function put({ body, db, url }) {
     const { word, translations, isWordRu } = validateInput({ errors, body });
 
     if (isWordRu) {
-        addError(errors, 'word', 'Изменяемое слово должно быть на исходном языке');
+        addError(errors, 'word', 'Ошибка: Изменяемое слово должно быть на исходном языке');
     }
 
     if (Object.values(errors).length) {
@@ -175,7 +175,7 @@ async function deleteMethod({ body, db, url }) {
     const ID = parseInt(rawID, 10);
 
     if (!ID) {
-        addError(errors, 'wordID', 'Некорректный идентификатор записи');
+        addError(errors, 'wordID', 'Ошибка: Некорректный идентификатор записи');
     } else {
         try {
             await db.removeWordAndTranslationsByID(ID);
