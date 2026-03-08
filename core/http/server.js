@@ -2,12 +2,12 @@ const http = require('http');
 const { createReadStream } = require('fs');
 const { pipeline, finished } = require('stream/promises');
 const path = require('path');
-const { DB } = require('../db/queries');
-const { port, defaultOrigin } = require('../shared/const.js');
-const { sanitizeURLParams, resolvePath } = require('../shared/utils.js');
-const dispatcher = require('./dispatcher.js');
-const handlePage = require('./controller.js');
-const pages = require('../pages/index.js');
+const { DB } = require('../../db/queries.js');
+const { port, defaultOrigin } = require('../../shared/const.js');
+const { sanitizeURLParams, resolvePath } = require('../../shared/utils.js');
+const dispatcher = require('../runtime/dispatcher.js');
+const handlePage = require('../runtime/controller.js');
+const pages = require('../../pages/index.js');
 
 const dataBase = new DB({
     host: 'localhost',
@@ -67,7 +67,7 @@ async function serveStatic(filePath, response) {
         const relativePath = filePath.replace(/^\/static\//, '');
 
         const safePath = resolvePath({
-            baseDir: path.join(__dirname, '../static/'),
+            baseDir: path.join(__dirname, '../../static/'),
             src: relativePath,
             allowedExtensions: Object.keys(types)
         });

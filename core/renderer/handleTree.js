@@ -1,4 +1,4 @@
-const components = require('../components/index.js');
+const components = require('../../components/index.js');
 
 async function collectData({ tree, db, url, messages, state = {props: {}, client: {}, constraints: {}} }) {
     const dataCollection = [];

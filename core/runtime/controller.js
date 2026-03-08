@@ -1,6 +1,6 @@
-const { escapeHtml, serializeForScript } = require('../shared/utils.js');
-const { buildTree } = require('./buildTree.js');
-const { collectData, renderTree } = require('./handleTree.js');
+const { escapeHtml, serializeForScript } = require('../../shared/utils.js');
+const { buildTree } = require('../renderer/buildTree.js');
+const { collectData, renderTree } = require('../renderer/handleTree.js');
 
 function generateLayout(meta, body, initialState = {}) {
 	const serializedState = serializeForScript(initialState);

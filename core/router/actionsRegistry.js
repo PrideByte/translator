@@ -1,5 +1,5 @@
-const actions = require('./actions/index.js');
-const pages = require('../pages/index.js');
+const actions = require('../actions/index.js');
+const pages = require('../../pages/index.js');
 
 const result = {};
 

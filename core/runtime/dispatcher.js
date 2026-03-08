@@ -1,8 +1,8 @@
 const qs = require('querystring');
 const handlePage = require('./controller.js');
-const settings = require('../shared/const.js');
-const doResponse = require('./responseMap.js');
-const getRoute = require('./router.js');
+const settings = require('../../shared/const.js');
+const doResponse = require('../http/responseMap.js');
+const getRoute = require('../router/router.js');
 
 async function parseFormData(request) {
     return new Promise((resolve, reject) => {
