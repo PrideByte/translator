@@ -18,11 +18,11 @@ const requiredData = async ({ db, url, attrs }) => {
 }
 
 function getOptions(opts) {
-	return settings.limitList.reduce((acc, el) => acc += `<option value="${el}"${el === opts.data.urlParams.limit ? " selected" : ""}>${el}</option>\n`, '');
+	return settings.limitList.reduce((acc, el) => acc += `<option value="${el}"${el === opts.urlParams.limit ? " selected" : ""}>${el}</option>\n`, '');
 }
 
 function generateURLSearchParamsInputFields(opts) {
-	return Object.entries(opts.data?.urlParams)?.reduce((acc, [key, value]) => {
+	return Object.entries(opts.urlParams)?.reduce((acc, [key, value]) => {
 		if (key !== 'limit') {
 			acc += value ? `<input type="hidden" name="${key}" value="${value}">\n` : '';
 		}
@@ -31,19 +31,20 @@ function generateURLSearchParamsInputFields(opts) {
 }
 
 function render(opts) {
-	const options = getOptions(opts);
-	const URLFields = generateURLSearchParamsInputFields(opts);
+	const {attrs, props, content} = opts;
+	const options = getOptions(props.data);
+	const URLFields = generateURLSearchParamsInputFields(props.data);
 
 	return `
-		<form class="${opts?.attrs?.class || 'limitfilter'}" action="${opts?.data?.url || '#'}">
+		<form class="${attrs?.class || 'limitfilter'}" action="${props?.data?.url || '#'}">
 			${URLFields}
 			<label>
-				<span>${opts.innerHTML.match(/([^\|]+)\s*?\|/ui)[1]}</span>
+				<span>${content.match(/([^\|]+)\s*?\|/ui)[1]}</span>
 				<select name="limit">
 					${options}
 				</select>
 			</label>
-			<button class="btn" type="submit">${opts.innerHTML.match(/\|\s*?([^\|]+)/ui)[1]}</button>
+			<button class="btn" type="submit">${content.match(/\|\s*?([^\|]+)/ui)[1]}</button>
 		</form>
 	`;
 }

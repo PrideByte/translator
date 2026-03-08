@@ -110,16 +110,20 @@ class DB {
         `, [word, `%${word}%`, limit, offset]);
 
         const wordsHash = result.reduce((acc, row) => {
-            if (!acc[row.word]) {
-                acc[row.word] = {};
+            if (!acc[row.id]) {
+                acc[row.id] = {};
             }
 
-            if (!acc[row.word]['translations']) {
-                acc[row.word]['translations'] = [];
+            if (!acc[row.id]['word']) {
+                acc[row.id]['word'] = row.word;
             }
 
-            acc[row.word].id = row.id;
-            acc[row.word].translations.push(row.ru_word);
+            if (!acc[row.id]['translations']) {
+                acc[row.id]['translations'] = [];
+            }
+
+            acc[row.id]['translations'].push(row.ru_word);
+
             return acc;
         }, {});
 

@@ -173,6 +173,12 @@ async function deleteMethod({ body, db, url }) {
     const errors = {};
     const rawID = body['wordID'] || url.params.wordID;
     const ID = parseInt(rawID, 10);
+    const page = body['page'] || url.params.page;
+    const limit = body['limit'] || url.params.limit;
+    const normalizedURL = {};
+
+    page && (normalizedURL.page = page);
+    limit && (normalizedURL.limit = limit);
 
     if (!ID) {
         addError(errors, 'wordID', 'Ошибка: Некорректный идентификатор записи');
@@ -195,6 +201,7 @@ async function deleteMethod({ body, db, url }) {
         statusCodeJSON: 200,
         statusCode: 303,
         pathname: '/',
+        normalizedURL: new URLSearchParams(normalizedURL).toString(),
         data: `Word with ID "${ID}" and its translations has been deleted successfully`
     };
 }

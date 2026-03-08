@@ -28,7 +28,13 @@ function renderRows({ errors, CSSclass, data }) {
     if (!data.length) {
         return `
             <div class="${CSSclass}__row">
-                <input aria-labelledby="translationsLegend" ${errors ? `aria-invalid="true" aria-describedby="translationsErrors"` : ''} class="${CSSclass}__input" name="translations" type="text" placeholder="Перевод" required>
+                <input aria-labelledby="translationsLegend"
+                    ${errors ? `aria-invalid="true" aria-describedby="translationsErrors"` : ''}
+                    class="${CSSclass}__input"
+                    name="translations"
+                    type="text"
+                    placeholder="Перевод"
+                    required>
                 <button class="btn" type="button" aria-label="Удалить перевод">
                     ×
                 </button>
@@ -41,7 +47,13 @@ function renderRows({ errors, CSSclass, data }) {
     data.forEach((element, idx) => {
         result += `
             <div class="${CSSclass}__row">
-                <input aria-labelledby="translationsLegend" ${errors ? `aria-invalid="true" aria-describedby="translationsErrors"` : ''} class="${CSSclass}__input" name="translations" type="text" placeholder="Перевод"${errors ? ` value="${element}"` : ''}${(idx === 0) ? ` required` : ''}>
+                <input aria-labelledby="translationsLegend"
+                    ${errors ? `aria-invalid="true" aria-describedby="translationsErrors"` : ''}
+                    class="${CSSclass}__input"
+                    name="translations"
+                    type="text"
+                    placeholder="Перевод"
+                    ${errors ? ` value="${element}"` : ''}${(idx === 0) ? ` required` : ''}>
                 <button class="btn" type="button" aria-label="Удалить перевод">
                     ×
                 </button>
@@ -53,21 +65,23 @@ function renderRows({ errors, CSSclass, data }) {
 }
 
 function render(opts) {
-    const CSSclass = opts.attrs.class || 'trsform';
+    const {attrs, props, content} = opts;
+    const {data} = props;
+    const CSSclass = attrs.class || 'trsform';
     let wordErrors, translationErrors;
-    // Error messages are contained in opts.data.errors
-    if (opts.data?.errors) {
-        wordErrors = opts.data.errors.word ? `<p>${opts.data.errors.word}</p>` : '';
-        translationErrors = !opts.data.errors.translations || !opts.data.errors.translations.length
+    // Error messages are contained in data.errors
+    if (data?.errors) {
+        wordErrors = data.errors.word ? `<p>${data.errors.word}</p>` : '';
+        translationErrors = !data.errors.translations || !data.errors.translations.length
             ? ''
-            : opts.data.errors.translations.map(el => `<p>${el}</p>`).join('\n');
+            : data.errors.translations.map(el => `<p>${el}</p>`).join('\n');
     }
 
     return `
-        <form class="${CSSclass}" method="POST" action="/translation${opts.data.wordID ? `?wordID=${opts.data.wordID}` : ''}">
+        <form class="${CSSclass}" method="POST" action="/translation${data?.wordID ? `?wordID=${data.wordID}` : ''}">
             <header class="${CSSclass}__header">
                 <h2 class="${CSSclass}__title">
-                    ${opts.data?.wordID ? 'Изменить' : 'Добавить'} перевод
+                    ${data?.wordID ? 'Изменить' : 'Добавить'} перевод
                 </h2>
                 <p id="mainWordHint" class="${CSSclass}__text">Поддерживается перевод в любом порядке (en - ru, ru - en)</p>
             </header>
@@ -76,16 +90,22 @@ function render(opts) {
             <div class="${CSSclass}__body">
                 <div class="${CSSclass}__group">
                     <label for="mainWord" class="${CSSclass}__label">Слово или предложение</label>
-                    <input id="mainWord" aria-describedby="mainWordHint${wordErrors ? ` mainWordErrors` : ''}" ${wordErrors ? `aria-invalid="true"` : ''} class="${CSSclass}__input${wordErrors
-                        ? ` ${CSSclass}__fielderr`
-                        : ''}" name="word" type="text" placeholder="Слово или предложение"${opts.data?.initial?.word ? ` value="${opts.data.initial.word}"` : ''} autofocus required>
+                    <input id="mainWord"
+                        aria-describedby="mainWordHint${wordErrors ? ` mainWordErrors` : ''}"
+                        ${wordErrors ? `aria-invalid="true"` : ''}
+                        class="${CSSclass}__input${wordErrors ? ` ${CSSclass}__fielderr` : ''}"
+                        name="word"
+                        type="text"
+                        placeholder="Слово или предложение"
+                        ${data?.initial?.word ? ` value="${data.initial.word}"` : ''}
+                        autofocus required>
                     ${wordErrors ? `<div role="alert" id="mainWordErrors" class="${CSSclass}__errors">${wordErrors}</div>` : ''}
                 </div>
 
                 <div class="${CSSclass}__group">
                     <fieldset class="${CSSclass}__group${translationErrors ? ` ${CSSclass}__fielderr` : ''}">
                         <legend id="translationsLegend">Переводы</legend>
-                        ${renderRows({ errors: Boolean(opts.data?.initial?.translations), CSSclass, data: opts.data?.initial?.translations || [] })}
+                        ${renderRows({ errors: Boolean(data?.initial?.translations), CSSclass, data: data?.initial?.translations || [] })}
 
                         <button class="btn btn-secondary" type="button">
                             + Добавить перевод
@@ -100,11 +120,11 @@ function render(opts) {
                     Очистить
                 </button>
                 <button type="submit" class="btn">
-                    ${opts.data?.wordID ? 'Изменить' : 'Добавить'}
+                    ${data?.wordID ? 'Изменить' : 'Добавить'}
                 </button>
             </footer>
-            ${opts.data.wordID ? `<input type="hidden" name="wordID" value="${opts.data.wordID}">` : ''}
-            ${opts.data.wordID ? '<input type="hidden" name="method" value="PUT">' : ''}
+            ${data?.wordID ? `<input type="hidden" name="wordID" value="${data.wordID}">` : ''}
+            ${data?.wordID ? '<input type="hidden" name="method" value="PUT">' : ''}
         </form>
     `;
 }

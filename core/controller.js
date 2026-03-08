@@ -41,11 +41,11 @@ async function handlePage({ pageTemplate, pageMeta = {}, db, url, statusCode = 2
 		strictMode: true
 	});
 
-	const initialData = await collectData({ tree, db, url, messages });
+	const {props, client, constraints} = await collectData({ tree, db, url, messages });
 	
-	if (initialData.constraints && Object.entries(initialData.constraints).length) {
+	if (constraints && Object.entries(constraints).length) {
 		const paramsList = [];
-		for (const [componentKey, componentConstraints] of Object.entries(initialData.constraints)) {
+		for (const [componentKey, componentConstraints] of Object.entries(constraints)) {
 			
 			if (componentConstraints.statusCode > result.statusCode) {
 				result.statusCode = componentConstraints.statusCode;
@@ -62,8 +62,8 @@ async function handlePage({ pageTemplate, pageMeta = {}, db, url, statusCode = 2
 
 		result.normalizedURL = newParams;
 	} else {
-		const body = renderTree(tree, initialData.data);
-		result.html = generateLayout(pageMeta, body, initialData.data);
+		const body = renderTree(tree, props);
+		result.html = generateLayout(pageMeta, body, client);
 		result.type = 'html';
 	}
 

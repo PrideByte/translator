@@ -258,6 +258,12 @@ li {
 	flex-shrink: 0;
 }
 
+.dictionary thead {
+	position: sticky;
+	top: 0;
+	box-shadow: 0 0 0 0 var(--color-text-secondary);
+}
+
 .dictionary thead th {
 	padding: 16px 20px;
 	background-color: var(--bg-table-head);
@@ -276,7 +282,7 @@ li {
 	font-weight: 400;
 }
 
-.dictionary tbody td:first-of-type {
+.dictionary tbody th {
 	border-right: 1px solid var(--bg-divider);
 }
 
@@ -288,6 +294,7 @@ li {
 	border-bottom: none;
 }
 
+/* Action buttons in the row */
 .dictionary__actions {
 	display: flex;
 	width: max-content;
@@ -303,13 +310,6 @@ li {
 	height: 34px;
 }
 
-/* Multiple translations inside cell */
-.dictionary th tr ul {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
 .dictionary__rmsection {
 	display: flex;
 }
@@ -319,6 +319,12 @@ li {
 }
 
 
+/* Multiple translations inside cell */
+.dictionary th tr ul {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
 
 
 /* Pagination */

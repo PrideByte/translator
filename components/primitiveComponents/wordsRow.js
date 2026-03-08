@@ -20,7 +20,7 @@ function render(opts) {
         <ul>
         ${lines}
         </ul>
-        <div class="${opts.class}__actions">
+        <div class="${opts.class}__actions" translate="no">
           <a href="/translation?wordID=${opts.data.id}" class="btn" title="Изменить" aria-label="Изменить слово ${escapeHtml(opts.data.word)}">✏️</a>
           <details name="delete__word" class="${opts.class}__rmsection">
             <summary class="btn ${opts.class}__rmsection-summary" title="Удалить" aria-label="Удалить слово ${escapeHtml(opts.data.word)}">❌</summary>

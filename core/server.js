@@ -39,7 +39,7 @@ function setSecurityHeaders(response) {
         "base-uri 'self'",
         "form-action 'self'",
         "frame-ancestors 'none'",
-        "upgrade-insecure-requests"
+        // "upgrade-insecure-requests"
     ].join('; '));
 
     response.setHeader('X-Content-Type-Options', 'nosniff');

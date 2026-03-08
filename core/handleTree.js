@@ -1,6 +1,6 @@
 const components = require('../components/index.js');
 
-async function collectData({ tree, db, url, messages, state = {} }) {
+async function collectData({ tree, db, url, messages, state = {props: {}, client: {}, constraints: {}} }) {
     const dataCollection = [];
 
     for (const node of tree) {
@@ -34,14 +34,9 @@ async function collectData({ tree, db, url, messages, state = {} }) {
 
     for (const {node, data} of result) {
         if (!data.constraints) {
-            if (!state["data"]) {
-                state["data"] = {};
-            }
-            state.data[node.attrs.key] = data.data;
+            state.props[node.attrs.key] = data;
+            state.client[node.attrs.key] = (typeof data.data !== "undefined") ? data.data : data;
         } else {
-            if (!state["constraints"]) {
-                state["constraints"] = {};
-            }
             state.constraints[node.attrs.key] = data.constraints;
         }
     }
@@ -72,14 +67,14 @@ function renderTree(tree, initialData = {}) {
 
         const innerHTML = renderTree(node.children, initialData);
 
-        const data = (node.attrs.key && node.attrs.key in initialData)
+        const props = (node.attrs.key && node.attrs.key in initialData)
             ? initialData[node.attrs.key]
             : null;
 
         html += component.render({
-            attrs: node.attrs,
-            data,
-            innerHTML
+            attrs: node.attrs,  // Atributes from template
+            props,              // Data and additional data from DB
+            content: innerHTML  // children nodes code
         });
     }
 

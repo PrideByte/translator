@@ -52,24 +52,38 @@ async function requiredData({ db, url }) {
 
 	return (!checkResult.constraints)
 		? {
-			data: await db.getTranslationsByWord(url.params)
+			data: await db.getTranslationsByWord(url.params),
+			additionalData: checkResult.data
 		}
 		: checkResult;
 }
 
+function generateURLSearchParamsInputFields(opts) {
+	return Object.entries(opts.urlParams)?.reduce((acc, [key, value]) => {
+		acc += value ? `<input type="hidden" name="${key}" value="${value}">\n` : '';
+
+		return acc;
+	}, '') || '';
+}
+
 function render(opts) {
-	const data = opts?.data ?? {};
-	const CSSclass = opts?.attrs?.class || 'translations';
-	let rows = Object.entries(data).map(([key, value]) => {
-		return wordsRow.render({
-			data: {
-				word: key,
-				translations: value.translations,
-				id: value.id
-			},
-			class: CSSclass
-		});
-	}).join('\n');
+	const {attrs, props, content} = opts;
+	const data = props?.data ?? {};
+	const CSSclass = attrs.class || 'translations';
+	const URLFields = generateURLSearchParamsInputFields(props.additionalData) || "";
+	let rows = Object.entries(data)
+		.sort((a, b) => a[1].word.toLowerCase() > b[1].word.toLowerCase() ? 1 : -1)
+		.map(([id, info]) => {
+			console.log(info.word);
+			return wordsRow.render({
+				data: {
+					word: info.word,
+					translations: info.translations,
+					id
+				},
+				class: CSSclass
+			});
+		}).join('\n');
 
 	if (!rows.trim()) {
 		rows = `
@@ -99,6 +113,7 @@ function render(opts) {
 				</tbody>
 			</table>
 			<input type='hidden' name='method' value='DELETE'>
+			${URLFields}
 		</form>
 	`;
 }

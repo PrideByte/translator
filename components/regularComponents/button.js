@@ -7,9 +7,10 @@ const requiredData = () => {
 };
 
 function render(opts) {
+  const {attrs, props, content} = opts;
   return `
-    <a class="${opts?.attrs?.class || ''}" href="${opts?.attrs?.href || '#'}">
-      ${opts?.innerHTML}
+    <a class="${attrs?.class || ''}" href="${attrs?.href || '#'}">
+      ${content}
     </a>
   `;
 }
