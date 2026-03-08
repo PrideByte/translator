@@ -74,7 +74,6 @@ function render(opts) {
 	let rows = Object.entries(data)
 		.sort((a, b) => a[1].word.toLowerCase() > b[1].word.toLowerCase() ? 1 : -1)
 		.map(([id, info]) => {
-			console.log(info.word);
 			return wordsRow.render({
 				data: {
 					word: info.word,

@@ -1,36 +1,8 @@
 const qs = require('querystring');
-const actions = require('./actionsRegistry.js');
 const handlePage = require('./controller.js');
 const settings = require('../shared/const.js');
-
-const responseMap = {
-    'html': (res) => ({
-        data: String(res.html || res.data),
-        statusCode: res.statusCode || 200,
-        headers: {
-            'Content-Type': 'text/html; charset=utf-8'
-        }
-    }),
-    'redirect': (res, requestURL) => {
-        const searchParams = res.normalizedURL || "";
-        const url = new URL(`${requestURL.origin}${res.pathname || requestURL.pathname}`);
-        url.search = searchParams;
-
-        return {
-            statusCode: res.statusCode,
-            headers: {
-                'Location': url.toString()
-            }
-        }
-    },
-    'json': (res) => ({
-        data: JSON.stringify(res),
-        statusCode: res.statusCodeJSON || res.statusCode,
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-};
+const doResponse = require('./responseMap.js');
+const getRoute = require('./router.js');
 
 async function parseFormData(request) {
     return new Promise((resolve, reject) => {
@@ -62,92 +34,73 @@ async function parseFormData(request) {
 async function dispatcher({ request, pathname, db, url, servicePages }) {
     const resourceURL = new URL(request.url, `http://${request.headers.host}`);
     const isJSON = request.headers['accept'] === 'application/json';
-
-    const throwSystemError = ({ statusCode, data }) => {
-        if (isJSON) {
-            return responseMap['json']({
-                type: 'error',
-                data, statusCode
-            });
-        }
-
-        const page = servicePages[statusCode] || servicePages['500'];
-        return responseMap['html']({
-            data: page.html,
-            statusCode
-        });
-    }
-
-    if (pathname.startsWith('/500')) {
-        return throwSystemError({ statusCode: 500, data: '500 Internal Server Error' });
-    }
-
-    if (!actions[pathname] || pathname.startsWith('/404')) {
-        return throwSystemError({ statusCode: 404, data: '404 Not Found' });
-    }
-
     const method = request.method;
-
-    if (!actions[pathname][method]) {
-        return throwSystemError({ statusCode: 405, data: '405 Method not Allowed' });
-    }
-
-    if (method === 'GET') {
-        const result = await handlePage({
-            pageTemplate: actions[pathname][method],
-            pageMeta: JSON.parse((await db.getPageMetaByPath(pathname))?.meta || "{}"),
-            db,
-            url,
-            statusCode: 200
-        });
-
-        return responseMap[result.type](result, resourceURL);
-    }
-
-    let body = '';
-    if (['POST', 'PUT', 'PATCH'].includes(method)) {
-        try {
-            body = await parseFormData(request);
-        } catch (e) {
-            return throwSystemError({ statusCode: e.statusCode || 400, data: e.data || e.message });
-        }
-    }
+    const route = getRoute({ pathname, method });
 
     let resultAction;
     try {
-        resultAction = await actions[pathname][method]({ body, db, url });
-    } catch (e) {
-        console.error('Action execution failed:', e);
-        return throwSystemError({ statusCode: 500, data: `Action ${method}:${pathname} execution error` });
-    }
-
-    if (isJSON) {
-        return responseMap['json'](resultAction);
-    }
-
-    // Action must return:
-    // { success: true, type: responseMap[type], pathname, ...payload }
-    // or
-    // { success: false, type: responseMap[type], pathname, ...payload }
-    if (resultAction.type && resultAction.type === 'continue') {
-
-        if (!actions[resultAction.pathname]['GET']) {
-            return throwSystemError({ statusCode: 400, data: `Action ${method}:${pathname} failed and no GET template available` });
+        if (!route.route) {
+            throw route
         }
 
-        const renderPage = await handlePage({
-            pageTemplate: actions[resultAction.pathname]['GET'],
-            pageMeta: JSON.parse((await db.getPageMetaByPath(resultAction.pathname))?.meta || "{}"),
-            db,
-            url,
-            statusCode: resultAction.statusCode,
-            messages: resultAction.messages
-        });
+        const body = (['POST', 'PUT', 'PATCH'].includes(method))
+            ? await parseFormData(request)
+            : null;
 
-        return responseMap[renderPage.type](renderPage, resourceURL);
+        if (method !== 'GET') {
+            resultAction = await route.route({ body, db, url });
+        } else {
+            resultAction = await handlePage({
+                pageTemplate: route.route,
+                pageMeta: JSON.parse((await db.getPageMetaByPath(pathname))?.meta || "{}"),
+                db,
+                url,
+                statusCode: 200
+            });
+        }
+
+        // Action must return:
+        // { success: true, type: responseMap[type], pathname, ...payload }
+        // or
+        // { success: false, type: responseMap[type], pathname, ...payload }
+        if (!isJSON && resultAction.type && resultAction.type === 'continue') {
+            const pageToRedirect = getRoute({ pathname: resultAction.pathname, method: 'GET' });
+
+            if (!pageToRedirect.route) {
+                throw route;
+            }
+
+            resultAction = await handlePage({
+                pageTemplate: pageToRedirect.route,
+                pageMeta: JSON.parse((await db.getPageMetaByPath(resultAction.pathname))?.meta || "{}"),
+                db,
+                url,
+                statusCode: resultAction.statusCode,
+                messages: resultAction.messages
+            });
+        }
+    } catch (error) {
+        if (!error.data) {
+            error.data = error.message || `[Dispatcher error]: ${error}`;
+        }
+        console.error(error.data);
+
+        if (!error.statusCode) {
+            error.statusCode = 500;
+        }
+
+        resultAction = {
+            type: 'error',
+            ...error
+        }
     }
 
-    return responseMap[resultAction.type](resultAction, resourceURL);
+    return doResponse({
+        res: resultAction,
+        isJSON,
+        servicePages,
+        resourceURL
+    });
 }
 
 module.exports = dispatcher;
