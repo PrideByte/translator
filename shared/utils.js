@@ -64,17 +64,6 @@ function resolvePath({ baseDir, src, allowedExtensions = [] }) {
 	return realPath;
 }
 
-function sanitizeURLParams(searchParams) {
-    const result = new URLSearchParams();
-    for (const [key, value] of searchParams.entries()) {
-        if (key && value && !result.has(key)) {
-            result.set(key, value);
-        }
-    }
-
-    return result;
-}
-
 function testLang(word, ruTest) {
 	return ruTest
 		// Если ни одной английской буквы - ru
@@ -92,7 +81,6 @@ module.exports = {
 	serializeForScript,
 	getAllAttrsString,
 	resolvePath,
-	sanitizeURLParams,
 	testLang,
 	segmenter: segmenterConstructor()
 };

@@ -1,3 +1,3 @@
-const server = require('./core/http/server.js');
+const server = require('./core/http/server/index.js');
 
 server();

@@ -1,7 +1,7 @@
 const qs = require('querystring');
 const handlePage = require('./controller.js');
 const settings = require('../../shared/const.js');
-const doResponse = require('../http/responseMap.js');
+const doResponse = require('../http/response/responseMap.js');
 const getRoute = require('../router/router.js');
 
 async function parseFormData(request) {
@@ -40,7 +40,7 @@ async function dispatcher({ request, pathname, db, url, servicePages }) {
     let resultAction;
     try {
         if (!route.route) {
-            throw route
+            throw route;
         }
 
         const body = (['POST', 'PUT', 'PATCH'].includes(method))
